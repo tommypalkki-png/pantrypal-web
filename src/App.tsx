@@ -113,20 +113,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v13
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v14
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v13
+                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v14
               </p>
             )}
             {tab === RECIPES && (
               <p className="mt-0.5 text-sm text-stone-400">
-                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v13
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v14
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v13</p>}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v14</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -288,7 +288,7 @@ function TabButton({ active, label, icon, onClick, activeClass = 'text-stone-800
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-w-[4.5rem] flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
+      className={`flex min-w-[3.75rem] flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
         active ? activeClass : 'text-stone-400'
       }`}
     >

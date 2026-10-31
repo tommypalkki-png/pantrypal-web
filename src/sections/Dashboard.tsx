@@ -25,7 +25,7 @@ export function Dashboard({ items, locations, customRecipes, onOpenRecipes, onSe
     .sort((a, b) => (daysUntilExpiry(a) ?? 9999) - (daysUntilExpiry(b) ?? 9999))
 
   return (
-    <div className="grid gap-6 px-4 pb-28 pt-5">
+    <div className="grid grid-cols-1 gap-6 px-4 pb-28 pt-5">
       {/* Tonight's pick */}
       <RecipeBanner items={items} customRecipes={customRecipes} onOpenRecipes={onOpenRecipes} />
 

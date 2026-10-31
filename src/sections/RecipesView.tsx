@@ -214,7 +214,7 @@ export function RecipesView({
   const online = state.kind === 'ready' ? state.recipes : []
 
   return (
-    <div className="grid gap-4 px-4 pb-28 pt-5">
+    <div className="grid grid-cols-1 gap-4 px-4 pb-28 pt-5">
       {/* My recipes header */}
       <div className="flex items-center justify-between px-1">
         <p className="text-sm font-medium text-stone-600">

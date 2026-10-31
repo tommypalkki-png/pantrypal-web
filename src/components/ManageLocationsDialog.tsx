@@ -50,7 +50,7 @@ export function ManageLocationsDialog({
           </DialogHeader>
 
           {/* Existing locations */}
-          <div className="grid gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {locations.map(loc => {
               const c = locationColor(loc)
               const count = items.filter(i => i.location === loc.id).length

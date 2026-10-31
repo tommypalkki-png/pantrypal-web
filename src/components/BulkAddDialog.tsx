@@ -166,7 +166,7 @@ export function BulkAddDialog({ open, onOpenChange, location, locations, onSave 
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-3 py-2">
+        <div className="grid grid-cols-1 gap-3 py-2">
           <Label htmlFor="bulk-items">One item per line</Label>
           <Textarea
             id="bulk-items"

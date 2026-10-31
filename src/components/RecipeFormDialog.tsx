@@ -49,8 +49,8 @@ export function RecipeFormDialog({ open, onOpenChange, onSave }: Props) {
           <DialogTitle>Add My Recipe</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-5 py-2">
-          <div className="grid gap-2">
+        <div className="grid grid-cols-1 gap-5 py-2">
+          <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="recipe-name">Name</Label>
             <Input
               id="recipe-name"
@@ -61,7 +61,7 @@ export function RecipeFormDialog({ open, onOpenChange, onSave }: Props) {
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="recipe-ingredients">Ingredients — one per line</Label>
             <Textarea
               id="recipe-ingredients"
@@ -75,7 +75,7 @@ export function RecipeFormDialog({ open, onOpenChange, onSave }: Props) {
             </p>
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="recipe-instructions">Method (optional)</Label>
             <Textarea
               id="recipe-instructions"
@@ -86,7 +86,7 @@ export function RecipeFormDialog({ open, onOpenChange, onSave }: Props) {
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="recipe-url">Link (optional)</Label>
             <Input
               id="recipe-url"

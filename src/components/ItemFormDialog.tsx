@@ -179,8 +179,8 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
             <DialogTitle>{item ? 'Edit Item' : 'Add Item'}</DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-5 py-2">
-            <div className="grid gap-2">
+          <div className="grid grid-cols-1 gap-5 py-2">
+            <div className="grid grid-cols-1 gap-2">
               <Label htmlFor="name">Name</Label>
               <div className="flex gap-2">
                 <Input
@@ -214,7 +214,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
               )}
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <Label>Location</Label>
               <div className="flex gap-2">
                 <Select value={locationId} onValueChange={setLocationId}>
@@ -238,7 +238,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
               {scanMsg && <p className="text-xs text-red-600">{scanMsg}</p>}
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <Label>Category</Label>
               <Select value={category} onValueChange={v => setCategory(v as ItemCategory)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -252,7 +252,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
               </Select>
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <Label>Quantity</Label>
               <div className="flex items-center gap-2">
                 <Button type="button" variant="outline" size="icon" onClick={() => bump(quantity <= 10 ? -0.5 : -1)}>
@@ -273,7 +273,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
               </div>
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="has-expiry">Has expiry date</Label>
                 <Switch id="has-expiry" checked={hasExpiry} onCheckedChange={setHasExpiry} />
@@ -287,7 +287,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
               )}
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="restock">Add to shopping list when low</Label>
                 <Switch id="restock" checked={restockEnabled} onCheckedChange={setRestockEnabled} />
@@ -321,7 +321,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
               )}
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <Label htmlFor="store">Store (optional)</Label>
               <Input
                 id="store"
@@ -335,7 +335,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
               </datalist>
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <Label htmlFor="notes">Notes (optional)</Label>
               <Textarea
                 id="notes"

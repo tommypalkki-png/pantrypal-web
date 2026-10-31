@@ -85,7 +85,7 @@ export function LocationView({ location, items, onAdd, onBulkAdd, onSelectItem }
           </button>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {grouped.map(([category, list]) => (
             <section key={category} className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200/60">
               <h2 className="px-2 pb-1 pt-1 text-sm font-semibold text-stone-600">

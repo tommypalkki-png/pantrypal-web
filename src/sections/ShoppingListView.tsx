@@ -52,7 +52,7 @@ export function ShoppingListView({ items, locations, extras, onRemoveExtra, onSe
   const isEmpty = lowItems.length === 0 && extras.length === 0
 
   return (
-    <div className="grid gap-4 px-4 pb-28 pt-5">
+    <div className="grid grid-cols-1 gap-4 px-4 pb-28 pt-5">
       {isEmpty ? (
         <div className="mt-6 rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-stone-200/60">
           <p className="text-4xl">🛒</p>

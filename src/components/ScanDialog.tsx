@@ -135,22 +135,22 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
         }
       } else if (zxingReader) {
         // zxing fallback — continuous callback-based decoding.
-        let zxingControls: { stop: () => void } | null = null
+        const zxingControlsRef: { current: { stop: () => void } | null } = { current: null }
         zxingReader.decodeFromVideoElement(video, result => {
           if (result && !cancelled) {
             cancelled = true
             const text = result.getText()
-            zxingControls?.stop()
+            zxingControlsRef.current?.stop()
             stream?.getTracks().forEach(t => t.stop())
             onScan(text)
           }
         })
-          .then(controls => { zxingControls = controls })
+          .then(controls => { zxingControlsRef.current = controls })
           .catch(() => {})
         while (!cancelled) {
           await sleep(200)
         }
-        zxingControls?.stop()
+        zxingControlsRef.current?.stop()
       }
     })()
 

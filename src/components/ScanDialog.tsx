@@ -10,105 +10,130 @@ interface Props {
   title?: string
 }
 
-type Phase =
-  | 'loading'      // decoder initialising
-  | 'requesting'   // getUserMedia in flight
-  | 'decoding'     // stream attached, decoder running
-  | 'error'
+type Phase = 'mounting' | 'requesting' | 'decoding'
 
-const PHASE_LABEL: Record<Exclude<Phase, 'error'>, string> = {
-  loading: 'Step 1/3 — starting the decoder…',
+const PHASE_LABEL: Record<Phase, string> = {
+  mounting: 'Step 1/3 — opening the camera view…',
   requesting: 'Step 2/3 — asking iOS for the camera…',
   decoding: 'Step 3/3 — camera on, point at a code',
 }
 
+const BARCODE_FORMATS = [
+  'qr_code', 'ean_13', 'ean_8', 'upc_a', 'upc_e',
+  'code_128', 'code_39', 'itf', 'codabar', 'data_matrix',
+]
+
+declare global {
+  interface Window {
+    BarcodeDetector?: new (options?: { formats?: string[] }) => {
+      detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>>
+    }
+  }
+}
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
 /**
- * Camera scanner for QR codes AND product barcodes (EAN/UPC/Code 128…).
- * zxing is statically bundled — a separate lazy chunk proved unreliable on
- * some iOS network paths.
+ * Camera scanner. Manages the MediaStream directly (zxing's device handling
+ * proved fragile on iOS) and prefers the OS-native BarcodeDetector when
+ * available, falling back to zxing decoding from the video element.
  */
 export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [phase, setPhase] = useState<Phase>('loading')
+  const [phase, setPhase] = useState<Phase>('mounting')
   const [error, setError] = useState<string | null>(null)
   const [slowHint, setSlowHint] = useState(false)
-  const phaseRef = useRef<Phase>('loading')
-
-  useEffect(() => {
-    phaseRef.current = phase
-  }, [phase])
 
   useEffect(() => {
     if (!open) return
     setError(null)
     setSlowHint(false)
-    setPhase('loading')
-    phaseRef.current = 'loading'
+    setPhase('mounting')
 
     let cancelled = false
-    let controls: { stop: () => void } | null = null
+    let stream: MediaStream | null = null
 
-    // If things take unusually long (slow network downloading the decoder,
-    // or iOS hanging the camera request), say so — but keep trying.
     const slowTimer = setTimeout(() => {
       if (!cancelled) setSlowHint(true)
     }, 15_000)
 
     ;(async () => {
-      const video = videoRef.current
-      if (!video) return
+      // 1) Wait for the video element — dialog portal timing on iOS can lag.
+      setPhase('mounting')
+      let video = videoRef.current
+      for (let i = 0; !video && i < 30 && !cancelled; i++) {
+        await sleep(100)
+        video = videoRef.current
+      }
+      if (cancelled) return
+      if (!video) {
+        setError('Internal error: the camera view did not mount [v6-mount]. Please screenshot this.')
+        return
+      }
+
+      // 2) Ask iOS for the camera — rear first, then any.
+      setPhase('requesting')
       try {
-        setPhase('loading')
-        if (cancelled) return
-        const reader = new BrowserMultiFormatReader()
-
-        const onResult = (result: { getText: () => string } | undefined) => {
-          if (result && !cancelled) {
-            cancelled = true
-            const text = result.getText()
-            controls?.stop()
-            onScan(text)
-          }
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' },
+            audio: false,
+          })
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         }
-
-        setPhase('requesting')
-        // iOS Safari often fails zxing's default device picking; ask for the
-        // rear camera explicitly, then fall back to any camera.
-        const attempts: MediaStreamConstraints[] = [
-          { video: { facingMode: 'environment' }, audio: false },
-          { video: true, audio: false },
-        ]
-        let lastErr: unknown = null
-        for (const constraints of attempts) {
-          try {
-            controls = await reader.decodeFromConstraints(constraints, video, onResult)
-            break
-          } catch (e) {
-            lastErr = e
-          }
-        }
-        if (!controls) throw lastErr ?? new Error('unknown camera error')
-
-        clearTimeout(slowTimer)
-        if (!video.srcObject) {
-          setError('The camera stream was accepted but no video is arriving. Fully close the app and try again.')
-        } else {
-          // iOS sometimes needs an explicit play() nudge
-          video.play().catch(() => {})
-          setPhase('decoding')
-        }
-        if (cancelled) controls.stop()
       } catch (e) {
-        clearTimeout(slowTimer)
-        if (!cancelled) {
-          const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
-          setError(
-            e instanceof Error && e.name === 'NotAllowedError'
-              ? 'Camera access was denied by iOS. Check Settings → Safari → Camera → Allow, and if you use the Home Screen app: delete it and re-add it after allowing in Safari.'
-              : e instanceof Error && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError')
-                ? 'No camera was found on this device.'
-                : `Camera error — please send me this text: ${detail}`,
-          )
+        const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+        setError(
+          e instanceof Error && e.name === 'NotAllowedError'
+            ? 'Camera access was denied by iOS. Check Settings → Safari → Camera → Allow.'
+            : e instanceof Error && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError')
+              ? 'No camera was found on this device.'
+              : `Camera error — please screenshot this: ${detail}`,
+        )
+        return
+      }
+      if (cancelled) {
+        stream.getTracks().forEach(t => t.stop())
+        return
+      }
+
+      // 3) Attach and start decoding.
+      video.srcObject = stream
+      try { await video.play() } catch { /* iOS may reject; srcObject still renders */ }
+      setPhase('decoding')
+      clearTimeout(slowTimer)
+
+      let detector: InstanceType<NonNullable<typeof window.BarcodeDetector>> | null = null
+      if (window.BarcodeDetector) {
+        try {
+          detector = new window.BarcodeDetector({ formats: BARCODE_FORMATS })
+        } catch { /* fall back to zxing */ }
+      }
+      const zxingReader = detector ? null : new BrowserMultiFormatReader()
+
+      while (!cancelled) {
+        try {
+          let text: string | null = null
+          if (detector) {
+            if (video.readyState >= 2) {
+              const codes = await detector.detect(video)
+              if (codes.length > 0) text = codes[0].rawValue
+            } else {
+              await sleep(200)
+            }
+          } else if (zxingReader) {
+            const result = await zxingReader.decodeFromVideoElement(video)
+            text = result ? result.getText() : null
+          }
+          if (text && !cancelled) {
+            cancelled = true
+            stream.getTracks().forEach(t => t.stop())
+            onScan(text)
+            return
+          }
+        } catch {
+          await sleep(150) // no code in frame yet — keep scanning
         }
       }
     })()
@@ -116,7 +141,7 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
     return () => {
       cancelled = true
       clearTimeout(slowTimer)
-      controls?.stop()
+      stream?.getTracks().forEach(t => t.stop())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -136,13 +161,11 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
           <p className="text-center text-sm text-red-600">{error}</p>
         ) : (
           <div>
-            <p className="text-center text-sm text-stone-500">
-              {PHASE_LABEL[phase as Exclude<Phase, 'error'>]}
-            </p>
+            <p className="text-center text-sm text-stone-500">{PHASE_LABEL[phase]}</p>
             {slowHint && phase !== 'decoding' && (
               <p className="mt-1 text-center text-xs text-amber-600">
-                Taking longer than usual — usually a slow connection downloading the
-                scanner. Keep this open a few more seconds; it should start on its own.
+                Taking longer than usual. If this persists past 30 seconds, close the
+                dialog, fully close Safari, and try once more.
               </p>
             )}
           </div>

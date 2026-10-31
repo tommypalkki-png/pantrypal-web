@@ -1,21 +1,18 @@
-import type { InventoryItem, StorageLocation } from '@/types/inventory'
-import { LOCATIONS, daysUntilExpiry, expiryStatus } from '@/types/inventory'
+import type { InventoryItem, Location } from '@/types/inventory'
+import { daysUntilExpiry, expiryStatus, locationColor } from '@/types/inventory'
 import { ItemRow } from '@/components/ItemRow'
-import { Package, Refrigerator, Snowflake, AlertTriangle, CheckCircle2 } from 'lucide-react'
-
-const LOCATION_ICONS: Record<StorageLocation, typeof Package> = {
-  pantry: Package,
-  fridge: Refrigerator,
-  freezer: Snowflake,
-}
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 interface Props {
   items: InventoryItem[]
-  onSelectLocation: (location: StorageLocation) => void
+  locations: Location[]
+  onSelectLocation: (locationId: string) => void
   onSelectItem: (item: InventoryItem) => void
 }
 
-export function Dashboard({ items, onSelectLocation, onSelectItem }: Props) {
+export function Dashboard({ items, locations, onSelectLocation, onSelectItem }: Props) {
+  const byId = new Map(locations.map(l => [l.id, l]))
+
   const attention = items
     .filter(i => ['expired', 'urgent'].includes(expiryStatus(i)))
     .sort((a, b) => (daysUntilExpiry(a) ?? 9999) - (daysUntilExpiry(b) ?? 9999))
@@ -27,19 +24,19 @@ export function Dashboard({ items, onSelectLocation, onSelectItem }: Props) {
     <div className="grid gap-6 px-4 pb-28 pt-5">
       {/* Location cards */}
       <div className="grid grid-cols-3 gap-3">
-        {(Object.keys(LOCATIONS) as StorageLocation[]).map(loc => {
-          const Icon = LOCATION_ICONS[loc]
-          const count = items.filter(i => i.location === loc).length
+        {locations.map(loc => {
+          const c = locationColor(loc)
+          const count = items.filter(i => i.location === loc.id).length
           return (
             <button
-              key={loc}
+              key={loc.id}
               type="button"
-              onClick={() => onSelectLocation(loc)}
+              onClick={() => onSelectLocation(loc.id)}
               className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200/60 transition-transform active:scale-95"
             >
-              <Icon className={`h-6 w-6 ${LOCATIONS[loc].accent}`} />
+              <span className="text-2xl">{loc.emoji}</span>
               <span className="text-2xl font-bold text-stone-800">{count}</span>
-              <span className="text-xs text-stone-400">{LOCATIONS[loc].title}</span>
+              <span className={`w-full truncate text-xs ${c.text}`}>{loc.name}</span>
             </button>
           )
         })}
@@ -71,7 +68,7 @@ export function Dashboard({ items, onSelectLocation, onSelectItem }: Props) {
           </h2>
           <div className="divide-y divide-stone-100">
             {attention.map(item => (
-              <ItemRow key={item.id} item={item} showLocation onClick={onSelectItem} />
+              <ItemRow key={item.id} item={item} location={byId.get(item.location)} showLocation onClick={onSelectItem} />
             ))}
           </div>
         </section>
@@ -84,7 +81,7 @@ export function Dashboard({ items, onSelectLocation, onSelectItem }: Props) {
           </h2>
           <div className="divide-y divide-stone-100">
             {soon.map(item => (
-              <ItemRow key={item.id} item={item} showLocation onClick={onSelectItem} />
+              <ItemRow key={item.id} item={item} location={byId.get(item.location)} showLocation onClick={onSelectItem} />
             ))}
           </div>
         </section>

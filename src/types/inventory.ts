@@ -1,51 +1,52 @@
-export type StorageLocation = 'pantry' | 'fridge' | 'freezer'
+// ---- Locations (user-defined) ----
+
+export interface Location {
+  id: string
+  name: string
+  emoji: string
+  colorIndex: number
+}
+
+export interface LocationColor {
+  name: string
+  hex: string
+  tile: string   // soft background for icon tiles
+  text: string   // accent text
+  solid: string  // solid button background
+}
+
+// All class names are literal so Tailwind JIT keeps them.
+export const LOCATION_COLORS: LocationColor[] = [
+  { name: 'Orange',  hex: '#f97316', tile: 'bg-orange-100',  text: 'text-orange-600',  solid: 'bg-orange-500' },
+  { name: 'Teal',    hex: '#0d9488', tile: 'bg-teal-100',    text: 'text-teal-600',    solid: 'bg-teal-500' },
+  { name: 'Indigo',  hex: '#6366f1', tile: 'bg-indigo-100',  text: 'text-indigo-600',  solid: 'bg-indigo-500' },
+  { name: 'Rose',    hex: '#e11d48', tile: 'bg-rose-100',    text: 'text-rose-600',    solid: 'bg-rose-500' },
+  { name: 'Amber',   hex: '#d97706', tile: 'bg-amber-100',   text: 'text-amber-600',   solid: 'bg-amber-500' },
+  { name: 'Emerald', hex: '#059669', tile: 'bg-emerald-100', text: 'text-emerald-600', solid: 'bg-emerald-500' },
+  { name: 'Cyan',    hex: '#0891b2', tile: 'bg-cyan-100',    text: 'text-cyan-600',    solid: 'bg-cyan-500' },
+  { name: 'Violet',  hex: '#7c3aed', tile: 'bg-violet-100',  text: 'text-violet-600',  solid: 'bg-violet-500' },
+]
+
+export const LOCATION_EMOJIS = [
+  '🥫', '🧊', '❄️', '🗄️', '🧺', '🥬', '🥤', '🍷',
+  '🧂', '🍪', '🥖', '🍯', '🏠', '🚗', '⛺', '📦',
+]
+
+export const DEFAULT_LOCATIONS: Location[] = [
+  { id: 'pantry',  name: 'Pantry',  emoji: '🥫', colorIndex: 0 },
+  { id: 'fridge',  name: 'Fridge',  emoji: '🥬', colorIndex: 1 },
+  { id: 'freezer', name: 'Freezer', emoji: '❄️', colorIndex: 2 },
+]
+
+export function locationColor(loc: Location | undefined): LocationColor {
+  return LOCATION_COLORS[(loc?.colorIndex ?? 0) % LOCATION_COLORS.length]
+}
+
+// ---- Categories ----
 
 export type ItemCategory =
   | 'produce' | 'dairyEggs' | 'meat' | 'seafood' | 'grainsPasta' | 'canned'
   | 'spicesCondiments' | 'frozen' | 'beverages' | 'snacks' | 'baking' | 'other'
-
-export interface InventoryItem {
-  id: string
-  name: string
-  location: StorageLocation
-  category: ItemCategory
-  quantity: number
-  unit: string
-  /** ISO date string yyyy-mm-dd, or null */
-  expiryDate: string | null
-  dateAdded: number
-  notes: string
-}
-
-export const LOCATIONS: Record<StorageLocation, {
-  title: string
-  color: string        // accent hex
-  tileBg: string       // tailwind class for icon tiles
-  accent: string       // tailwind text class
-  ring: string         // tailwind ring/bg class for active states
-}> = {
-  pantry: {
-    title: 'Pantry',
-    color: '#f97316',
-    tileBg: 'bg-orange-100',
-    accent: 'text-orange-600',
-    ring: 'bg-orange-500',
-  },
-  fridge: {
-    title: 'Fridge',
-    color: '#0d9488',
-    tileBg: 'bg-teal-100',
-    accent: 'text-teal-600',
-    ring: 'bg-teal-500',
-  },
-  freezer: {
-    title: 'Freezer',
-    color: '#6366f1',
-    tileBg: 'bg-indigo-100',
-    accent: 'text-indigo-600',
-    ring: 'bg-indigo-500',
-  },
-}
 
 export const CATEGORIES: Record<ItemCategory, { title: string; emoji: string }> = {
   produce: { title: 'Produce', emoji: '🥬' },
@@ -63,6 +64,22 @@ export const CATEGORIES: Record<ItemCategory, { title: string; emoji: string }> 
 }
 
 export const UNITS = ['pcs', 'g', 'kg', 'ml', 'L', 'pack', 'box', 'bag', 'bottle', 'can', 'jar', 'dozen']
+
+// ---- Items ----
+
+export interface InventoryItem {
+  id: string
+  name: string
+  /** id of a Location */
+  location: string
+  category: ItemCategory
+  quantity: number
+  unit: string
+  /** ISO date string yyyy-mm-dd, or null */
+  expiryDate: string | null
+  dateAdded: number
+  notes: string
+}
 
 export type ExpiryStatus = 'expired' | 'urgent' | 'soon' | 'fresh' | 'none'
 
@@ -117,6 +134,26 @@ export function newId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
+// ---- Location QR payloads ----
+// A location QR encodes an absolute deep link into the app:
+//   <deployed-url>?add=1&loc=<locationId>
+// The in-app scanner also accepts the raw query string or a bare "loc=" param.
+
+export function locationDeepLink(locationId: string): string {
+  const base = window.location.origin + window.location.pathname
+  return `${base}?add=1&loc=${encodeURIComponent(locationId)}`
+}
+
+/** Extract a location id from any scanned QR payload, or null if it isn't one of ours. */
+export function parseLocationId(payload: string): string | null {
+  const match = payload.match(/[?&#]loc=([A-Za-z0-9_-]+)/)
+  if (match) return decodeURIComponent(match[1])
+  if (payload.startsWith('pantrypal:loc:')) return payload.slice('pantrypal:loc:'.length)
+  return null
+}
+
+// ---- Sample data ----
+
 function isoDaysFromNow(n: number): string {
   const d = new Date()
   d.setDate(d.getDate() + n)
@@ -127,7 +164,7 @@ export function sampleItems(): InventoryItem[] {
   const now = Date.now()
   let i = 0
   const make = (
-    name: string, location: StorageLocation, category: ItemCategory,
+    name: string, location: string, category: ItemCategory,
     quantity: number, unit: string, expiryInDays: number | null, notes = '',
   ): InventoryItem => ({
     id: newId() + (i++),

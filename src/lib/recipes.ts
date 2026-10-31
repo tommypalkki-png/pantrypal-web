@@ -33,6 +33,10 @@ export interface ScoredRecipe extends Recipe {
   missing: string[]
   /** matched / total recipe ingredients, 0..1 */
   score: number
+  /** true for the user's own recipes */
+  isCustom?: boolean
+  /** id within the custom-recipe store (for delete) */
+  customId?: string
 }
 
 // ---- Ingredient keyword extraction ----
@@ -219,4 +223,60 @@ export async function recommendRecipes(
     .filter(r => r.matched.length >= 2) // must use at least 2 things you have
     .sort((a, b) => b.score - a.score || a.missing.length - b.missing.length)
     .slice(0, maxResults)
+}
+
+// ---- Custom (user-entered) recipes — scored locally, no network ----
+
+export interface CustomRecipeInput {
+  id: string
+  name: string
+  /** one ingredient per line, as typed by the user */
+  ingredientLines: string[]
+  instructions: string
+  url?: string
+}
+
+/** Strip a leading measure ("2 cups", "400g", "a pinch of") to get the ingredient name. */
+function stripMeasure(line: string): string {
+  return line
+    .toLowerCase()
+    .replace(/^[\d¼½¾⅓⅔⅛\/.-]+\s*/, '')
+    .replace(/^(cups?|tbsp?|tsp|tablespoons?|teaspoons?|grams?|g|kg|oz|ounces?|lbs?|pounds?|ml|l|litres?|liters?|pinch(?:es)?|cloves?|cans?|tins?|packs?|slices?|sprigs?|bunch(?:es)?|handful(?:s)?)\s+(of\s+)?/, '')
+    .trim()
+}
+
+/** Score the user's own recipes against the pantry — same matching as online recipes. */
+export function scoreCustomRecipes(
+  items: InventoryItem[],
+  customs: CustomRecipeInput[],
+): ScoredRecipe[] {
+  const pantry = pantryIngredients(items)
+  return customs.map(c => {
+    const lines = c.ingredientLines.map(l => l.trim()).filter(Boolean)
+    const ingredients = lines.map(stripMeasure).filter(Boolean)
+    const matchedNames = new Set<string>()
+    const missing: string[] = []
+    for (const ing of ingredients) {
+      const hit = ingredientMatches(ing, pantry)
+      if (hit) matchedNames.add(hit.itemName)
+      else missing.push(ing)
+    }
+    return {
+      id: `custom-${c.id}`,
+      name: c.name,
+      thumb: '',
+      category: 'My recipes',
+      area: '',
+      instructions: c.instructions,
+      sourceUrl: c.url ?? null,
+      youtubeUrl: null,
+      ingredients,
+      ingredientLines: lines,
+      matched: [...matchedNames],
+      missing,
+      score: ingredients.length > 0 ? matchedNames.size / ingredients.length : 0,
+      isCustom: true,
+      customId: c.id,
+    }
+  })
 }

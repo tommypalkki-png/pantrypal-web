@@ -4,6 +4,8 @@ import { isLowStock, locationColor, parseLocationId } from '@/types/inventory'
 import { looksLikeBarcode } from '@/lib/openfoodfacts'
 import { useInventory } from '@/hooks/useInventory'
 import { useLocations } from '@/hooks/useLocations'
+import { useShoppingExtras } from '@/hooks/useShoppingExtras'
+import { useCustomRecipes } from '@/hooks/useCustomRecipes'
 import { Dashboard } from '@/sections/Dashboard'
 import { LocationView } from '@/sections/LocationView'
 import { ShoppingListView } from '@/sections/ShoppingListView'
@@ -21,6 +23,8 @@ const RECIPES = 'recipes'
 export default function App() {
   const { items, addItem, updateItem, deleteItem } = useInventory()
   const { locations, addLocation, renameLocation, deleteLocation } = useLocations()
+  const { extras, addExtras, removeExtra } = useShoppingExtras()
+  const { customRecipes, addRecipe, deleteRecipe } = useCustomRecipes()
 
   const [tab, setTab] = useState<string>(HOME)
   const [formOpen, setFormOpen] = useState(false)
@@ -85,7 +89,7 @@ export default function App() {
   const activeLocation: Location | undefined =
     tab === HOME || tab === SHOP || tab === RECIPES ? undefined : locations.find(l => l.id === tab)
 
-  const lowCount = items.filter(isLowStock).length
+  const lowCount = items.filter(isLowStock).length + extras.length
 
   // Distinct store names in use — autocomplete suggestions in the item form.
   const storeNames = [...new Set(
@@ -107,20 +111,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v9
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v10
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} low in stock · v9
+                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v10
               </p>
             )}
             {tab === RECIPES && (
               <p className="mt-0.5 text-sm text-stone-400">
-                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v9
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v10
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v9</p>}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v10</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -149,10 +153,18 @@ export default function App() {
           <ShoppingListView
             items={items}
             locations={locations}
+            extras={extras}
+            onRemoveExtra={removeExtra}
             onSelectItem={openEdit}
           />
         ) : tab === RECIPES ? (
-          <RecipesView items={items} />
+          <RecipesView
+            items={items}
+            customRecipes={customRecipes}
+            onAddCustomRecipe={addRecipe}
+            onDeleteCustomRecipe={deleteRecipe}
+            onAddToShoppingList={addExtras}
+          />
         ) : tab === HOME || !activeLocation ? (
           <Dashboard
             items={items}

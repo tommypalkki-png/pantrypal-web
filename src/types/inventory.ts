@@ -63,7 +63,11 @@ export const CATEGORIES: Record<ItemCategory, { title: string; emoji: string }> 
   other: { title: 'Other', emoji: '📦' },
 }
 
-export const UNITS = ['pcs', 'g', 'kg', 'ml', 'L', 'pack', 'box', 'bag', 'bottle', 'can', 'jar', 'dozen']
+export const UNITS = [
+  'pcs', 'g', 'kg', 'oz', 'lb',
+  'ml', 'L', 'fl oz', 'cup', 'pint', 'quart', 'gal',
+  'pack', 'box', 'bag', 'bottle', 'can', 'jar', 'dozen',
+]
 
 // ---- Items ----
 
@@ -79,6 +83,17 @@ export interface InventoryItem {
   expiryDate: string | null
   dateAdded: number
   notes: string
+  /**
+   * Low-stock threshold: when quantity drops to this value or below,
+   * the item is automatically listed on the shopping list.
+   * null/undefined = auto-add disabled. (Optional for pre-v7 stored data.)
+   */
+  restockAt?: number | null
+}
+
+/** True when the item should appear on the shopping list. */
+export function isLowStock(item: InventoryItem): boolean {
+  return item.restockAt != null && item.quantity <= item.restockAt
 }
 
 export type ExpiryStatus = 'expired' | 'urgent' | 'soon' | 'fresh' | 'none'
@@ -174,7 +189,7 @@ export function sampleItems(): InventoryItem[] {
     notes,
   })
 
-  return [
+  const items = [
     make('Spaghetti', 'pantry', 'grainsPasta', 2, 'pack', null),
     make('Basmati rice', 'pantry', 'grainsPasta', 1, 'bag', null),
     make('Chopped tomatoes', 'pantry', 'canned', 4, 'can', 240),
@@ -196,4 +211,10 @@ export function sampleItems(): InventoryItem[] {
     make('Vanilla ice cream', 'freezer', 'frozen', 1, 'box', 60),
     make('Bread loaf', 'freezer', 'grainsPasta', 1, 'pcs', null),
   ]
+
+  // Demo the low-stock rule: milk and eggs auto-join the shopping list when running out.
+  for (const item of items) {
+    if (item.name === 'Whole milk' || item.name === 'Eggs') item.restockAt = 1
+  }
+  return items
 }

@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserMultiFormatReader } from '@zxing/browser'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+/** Handle for the lazily-loaded zxing reader (fallback when the OS has no native decoder). */
+type ZxingReader = {
+  decodeFromVideoElement: (
+    video: HTMLVideoElement,
+    cb: (result: { getText: () => string } | null) => void,
+  ) => Promise<{ stop: () => void }>
+}
 
 interface Props {
   open: boolean
@@ -110,7 +117,19 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
           detector = new window.BarcodeDetector({ formats: BARCODE_FORMATS })
         } catch { /* fall back to zxing */ }
       }
-      const zxingReader = detector ? null : new BrowserMultiFormatReader()
+      let zxingReader: ZxingReader | null = null
+      if (!detector) {
+        try {
+          // Lazy-load zxing only when the OS decoder is unavailable.
+          const mod = await import('@zxing/browser')
+          if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+          zxingReader = new mod.BrowserMultiFormatReader() as unknown as ZxingReader
+        } catch {
+          setError('Could not load the barcode decoder. Check your connection and try again.')
+          stream.getTracks().forEach(t => t.stop())
+          return
+        }
+      }
 
       if (detector) {
         // Native OS decoder — poll frames.

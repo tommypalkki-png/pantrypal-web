@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
 import type { InventoryItem, Location } from '@/types/inventory'
-import { locationColor, parseLocationId } from '@/types/inventory'
+import { isLowStock, locationColor, parseLocationId } from '@/types/inventory'
 import { looksLikeBarcode } from '@/lib/openfoodfacts'
 import { useInventory } from '@/hooks/useInventory'
 import { useLocations } from '@/hooks/useLocations'
 import { Dashboard } from '@/sections/Dashboard'
 import { LocationView } from '@/sections/LocationView'
+import { ShoppingListView } from '@/sections/ShoppingListView'
 import { ItemFormDialog, type ItemDraft } from '@/components/ItemFormDialog'
 import { ManageLocationsDialog } from '@/components/ManageLocationsDialog'
 import { LocationQRDialog } from '@/components/LocationQRDialog'
 import { ScanDialog } from '@/components/ScanDialog'
-import { House, Plus, ScanLine, Settings2 } from 'lucide-react'
+import { House, Plus, ScanLine, Settings2, ShoppingCart } from 'lucide-react'
 
 const HOME = 'home'
+const SHOP = 'shop'
 
 export default function App() {
   const { items, addItem, updateItem, deleteItem } = useInventory()
@@ -79,9 +81,14 @@ export default function App() {
   }
 
   const activeLocation: Location | undefined =
-    tab === HOME ? undefined : locations.find(l => l.id === tab)
+    tab === HOME || tab === SHOP ? undefined : locations.find(l => l.id === tab)
 
-  const title = tab === HOME ? 'Kitchen Inventory' : (activeLocation?.name ?? 'Kitchen Inventory')
+  const lowCount = items.filter(isLowStock).length
+
+  const title =
+    tab === HOME ? 'Kitchen Inventory'
+    : tab === SHOP ? 'Shopping List'
+    : (activeLocation?.name ?? 'Kitchen Inventory')
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-stone-100">
@@ -92,10 +99,15 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v6
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v7
               </p>
             )}
-            {tab !== HOME && <p className="mt-0.5 text-sm text-stone-400">v6</p>}
+            {tab === SHOP && (
+              <p className="mt-0.5 text-sm text-stone-400">
+                {lowCount} item{lowCount === 1 ? '' : 's'} low in stock · v7
+              </p>
+            )}
+            {tab !== HOME && tab !== SHOP && <p className="mt-0.5 text-sm text-stone-400">v7</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -120,7 +132,13 @@ export default function App() {
 
       {/* Content */}
       <main className="flex-1">
-        {tab === HOME || !activeLocation ? (
+        {tab === SHOP ? (
+          <ShoppingListView
+            items={items}
+            locations={locations}
+            onSelectItem={openEdit}
+          />
+        ) : tab === HOME || !activeLocation ? (
           <Dashboard
             items={items}
             locations={locations}
@@ -156,6 +174,13 @@ export default function App() {
             label="Home"
             icon={<House className="h-5 w-5" />}
             onClick={() => setTab(HOME)}
+          />
+          <TabButton
+            active={tab === SHOP}
+            label="Shop"
+            badge={lowCount}
+            icon={<ShoppingCart className="h-5 w-5" />}
+            onClick={() => setTab(SHOP)}
           />
           {locations.map(loc => {
             const c = locationColor(loc)
@@ -202,12 +227,13 @@ export default function App() {
   )
 }
 
-function TabButton({ active, label, icon, onClick, activeClass = 'text-stone-800' }: {
+function TabButton({ active, label, icon, onClick, activeClass = 'text-stone-800', badge = 0 }: {
   active: boolean
   label: string
   icon: React.ReactNode
   onClick: () => void
   activeClass?: string
+  badge?: number
 }) {
   return (
     <button
@@ -217,7 +243,14 @@ function TabButton({ active, label, icon, onClick, activeClass = 'text-stone-800
         active ? activeClass : 'text-stone-400'
       }`}
     >
-      {icon}
+      <span className="relative">
+        {icon}
+        {badge > 0 && (
+          <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+            {badge > 99 ? '99' : badge}
+          </span>
+        )}
+      </span>
       <span className="max-w-[5.5rem] truncate">{label}</span>
     </button>
   )

@@ -53,6 +53,8 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
   const [unit, setUnit] = useState('pcs')
   const [hasExpiry, setHasExpiry] = useState(false)
   const [expiryDate, setExpiryDate] = useState(defaultExpiry())
+  const [restockEnabled, setRestockEnabled] = useState(false)
+  const [restockAt, setRestockAt] = useState(1)
   const [notes, setNotes] = useState('')
   const [scanPurpose, setScanPurpose] = useState<'location' | 'barcode' | null>(null)
   const [scanMsg, setScanMsg] = useState<string | null>(null)
@@ -72,6 +74,8 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
     setUnit(item?.unit ?? 'pcs')
     setHasExpiry(item?.expiryDate != null)
     setExpiryDate(item?.expiryDate ?? defaultExpiry())
+    setRestockEnabled(item?.restockAt != null)
+    setRestockAt(item?.restockAt ?? 1)
     setNotes(item?.notes ?? '')
     setScanMsg(null)
     setLookup({ kind: 'idle' })
@@ -115,6 +119,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
       expiryDate: hasExpiry ? expiryDate : null,
       dateAdded: item?.dateAdded ?? Date.now(),
       notes: notes.trim(),
+      restockAt: restockEnabled ? restockAt : null,
     })
     onOpenChange(false)
   }
@@ -274,6 +279,40 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
                   value={expiryDate}
                   onChange={e => setExpiryDate(e.target.value)}
                 />
+              )}
+            </div>
+
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="restock">Add to shopping list when low</Label>
+                <Switch id="restock" checked={restockEnabled} onCheckedChange={setRestockEnabled} />
+              </div>
+              {restockEnabled && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-stone-500">When quantity drops to</span>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setRestockAt(v => Math.max(0, v - 1))}
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="w-8 text-center font-semibold tabular-nums">{restockAt}</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setRestockAt(v => Math.min(99, v + 1))}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <span className="text-sm text-stone-500">or below</span>
+                </div>
               )}
             </div>
 

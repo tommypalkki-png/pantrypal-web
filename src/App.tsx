@@ -92,10 +92,10 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v4
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v5
               </p>
             )}
-            {tab !== HOME && <p className="mt-0.5 text-sm text-stone-400">v4</p>}
+            {tab !== HOME && <p className="mt-0.5 text-sm text-stone-400">v5</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { BrowserMultiFormatReader } from '@zxing/browser'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface Props {
@@ -10,20 +11,21 @@ interface Props {
 }
 
 type Phase =
-  | 'loading'      // importing zxing
+  | 'loading'      // decoder initialising
   | 'requesting'   // getUserMedia in flight
   | 'decoding'     // stream attached, decoder running
   | 'error'
 
 const PHASE_LABEL: Record<Exclude<Phase, 'error'>, string> = {
-  loading: 'Step 1/3 — loading the decoder…',
+  loading: 'Step 1/3 — starting the decoder…',
   requesting: 'Step 2/3 — asking iOS for the camera…',
   decoding: 'Step 3/3 — camera on, point at a code',
 }
 
 /**
  * Camera scanner for QR codes AND product barcodes (EAN/UPC/Code 128…).
- * The zxing library is lazy-loaded so it stays out of the main bundle.
+ * zxing is statically bundled — a separate lazy chunk proved unreliable on
+ * some iOS network paths.
  */
 export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -57,7 +59,6 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
       if (!video) return
       try {
         setPhase('loading')
-        const { BrowserMultiFormatReader } = await import('@zxing/browser')
         if (cancelled) return
         const reader = new BrowserMultiFormatReader()
 

@@ -1,0 +1,187 @@
+import { useEffect, useState } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import { Minus, Plus, Trash2 } from 'lucide-react'
+import type { InventoryItem, ItemCategory, StorageLocation } from '@/types/inventory'
+import { CATEGORIES, LOCATIONS, UNITS, newId } from '@/types/inventory'
+
+interface Props {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** null = adding a new item */
+  item: InventoryItem | null
+  defaultLocation: StorageLocation
+  onSave: (item: InventoryItem) => void
+  onDelete?: (id: string) => void
+}
+
+function defaultExpiry(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 7)
+  return d.toISOString().slice(0, 10)
+}
+
+export function ItemFormDialog({ open, onOpenChange, item, defaultLocation, onSave, onDelete }: Props) {
+  const [name, setName] = useState('')
+  const [location, setLocation] = useState<StorageLocation>(defaultLocation)
+  const [category, setCategory] = useState<ItemCategory>('other')
+  const [quantity, setQuantity] = useState(1)
+  const [unit, setUnit] = useState('pcs')
+  const [hasExpiry, setHasExpiry] = useState(false)
+  const [expiryDate, setExpiryDate] = useState(defaultExpiry())
+  const [notes, setNotes] = useState('')
+
+  // Reset the form every time the dialog opens
+  useEffect(() => {
+    if (!open) return
+    setName(item?.name ?? '')
+    setLocation(item?.location ?? defaultLocation)
+    setCategory(item?.category ?? 'other')
+    setQuantity(item?.quantity ?? 1)
+    setUnit(item?.unit ?? 'pcs')
+    setHasExpiry(item?.expiryDate != null)
+    setExpiryDate(item?.expiryDate ?? defaultExpiry())
+    setNotes(item?.notes ?? '')
+  }, [open, item, defaultLocation])
+
+  const trimmed = name.trim()
+
+  const save = () => {
+    if (!trimmed) return
+    onSave({
+      id: item?.id ?? newId(),
+      name: trimmed,
+      location,
+      category,
+      quantity,
+      unit,
+      expiryDate: hasExpiry ? expiryDate : null,
+      dateAdded: item?.dateAdded ?? Date.now(),
+      notes: notes.trim(),
+    })
+    onOpenChange(false)
+  }
+
+  const bump = (delta: number) =>
+    setQuantity(q => Math.max(0, Math.round((q + delta) * 10) / 10))
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{item ? 'Edit Item' : 'Add Item'}</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-5 py-2">
+          <div className="grid gap-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              placeholder="e.g. Greek yogurt"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>Location</Label>
+              <Select value={location} onValueChange={v => setLocation(v as StorageLocation)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(LOCATIONS) as StorageLocation[]).map(l => (
+                    <SelectItem key={l} value={l}>{LOCATIONS[l].title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Category</Label>
+              <Select value={category} onValueChange={v => setCategory(v as ItemCategory)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CATEGORIES) as ItemCategory[]).map(c => (
+                    <SelectItem key={c} value={c}>
+                      {CATEGORIES[c].emoji} {CATEGORIES[c].title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Quantity</Label>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="icon" onClick={() => bump(quantity <= 10 ? -0.5 : -1)}>
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="w-16 text-center text-lg font-semibold tabular-nums">
+                {Number.isInteger(quantity) ? quantity : quantity.toFixed(1)}
+              </span>
+              <Button type="button" variant="outline" size="icon" onClick={() => bump(quantity < 10 ? 0.5 : 1)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Select value={unit} onValueChange={setUnit}>
+                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="has-expiry">Has expiry date</Label>
+              <Switch id="has-expiry" checked={hasExpiry} onCheckedChange={setHasExpiry} />
+            </div>
+            {hasExpiry && (
+              <Input
+                type="date"
+                value={expiryDate}
+                onChange={e => setExpiryDate(e.target.value)}
+              />
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="notes">Notes (optional)</Label>
+            <Textarea
+              id="notes"
+              placeholder="Brand, where you bought it…"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={2}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          {item && onDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => { onDelete(item.id); onOpenChange(false) }}
+            >
+              <Trash2 className="mr-1 h-4 w-4" /> Delete
+            </Button>
+          )}
+          <Button type="button" className="flex-1" disabled={!trimmed} onClick={save}>
+            Save
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

@@ -1,0 +1,17 @@
+{
+  "name": "PantryPal — Kitchen Inventory",
+  "short_name": "PantryPal",
+  "description": "Track what's in your pantry, fridge and freezer.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f5f4",
+  "theme_color": "#292524",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

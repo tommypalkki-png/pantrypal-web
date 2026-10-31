@@ -9,36 +9,57 @@ interface Props {
   title?: string
 }
 
+type Phase =
+  | 'loading'      // importing zxing
+  | 'requesting'   // getUserMedia in flight
+  | 'decoding'     // stream attached, decoder running
+  | 'error'
+
+const PHASE_LABEL: Record<Exclude<Phase, 'error'>, string> = {
+  loading: 'Step 1/3 — loading the decoder…',
+  requesting: 'Step 2/3 — asking iOS for the camera…',
+  decoding: 'Step 3/3 — camera on, point at a code',
+}
+
 /**
  * Camera scanner for QR codes AND product barcodes (EAN/UPC/Code 128…).
  * The zxing library is lazy-loaded so it stays out of the main bundle.
  */
 export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [phase, setPhase] = useState<Phase>('loading')
   const [error, setError] = useState<string | null>(null)
+  const phaseRef = useRef<Phase>('loading')
+
+  useEffect(() => {
+    phaseRef.current = phase
+  }, [phase])
 
   useEffect(() => {
     if (!open) return
     setError(null)
+    setPhase('loading')
+    phaseRef.current = 'loading'
 
     let cancelled = false
     let controls: { stop: () => void } | null = null
-    let streamStarted = false
 
-    // If nothing has started after 6s, the camera is unavailable or the
-    // permission prompt was blocked — tell the user instead of showing black.
+    // If the camera request neither resolves nor rejects within 10s, iOS has
+    // hung it — report exactly which step we were on.
     const watchdog = setTimeout(() => {
-      if (!cancelled && !streamStarted) {
+      if (!cancelled) {
         setError(
-          'The camera is not available in this browser. Check that this device has a camera and that browser camera permission is allowed — or use the app on your phone instead.',
+          `Camera did not respond within 10s (stuck at: "${PHASE_LABEL[phaseRef.current as Exclude<Phase, 'error'>] ?? phaseRef.current}"). ` +
+          `iOS gave no error — fully close the app and try again, or check Settings → Safari → Camera. [v3]`,
         )
       }
-    }, 6000)
+    }, 10_000)
 
     ;(async () => {
       const video = videoRef.current
       if (!video) return
       try {
+        setPhase('loading')
         const { BrowserMultiFormatReader } = await import('@zxing/browser')
         if (cancelled) return
         const reader = new BrowserMultiFormatReader()
@@ -52,6 +73,7 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
           }
         }
 
+        setPhase('requesting')
         // iOS Safari often fails zxing's default device picking; ask for the
         // rear camera explicitly, then fall back to any camera.
         const attempts: MediaStreamConstraints[] = [
@@ -69,10 +91,13 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
         }
         if (!controls) throw lastErr ?? new Error('unknown camera error')
 
-        streamStarted = !!video.srcObject
         clearTimeout(watchdog)
-        if (!streamStarted && !cancelled) {
-          setError('The camera started but no video is arriving. Try closing and reopening the app.')
+        if (!video.srcObject) {
+          setError('The camera stream was accepted but no video is arriving. Fully close the app and try again.')
+        } else {
+          // iOS sometimes needs an explicit play() nudge
+          video.play().catch(() => {})
+          setPhase('decoding')
         }
         if (cancelled) controls.stop()
       } catch (e) {
@@ -81,10 +106,10 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
           const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
           setError(
             e instanceof Error && e.name === 'NotAllowedError'
-              ? 'Camera access was denied. Check Settings → Safari → Camera (or the app\'s permissions) and try again.'
+              ? 'Camera access was denied by iOS. Check Settings → Safari → Camera → Allow, and if you use the Home Screen app: delete it and re-add it after allowing in Safari.'
               : e instanceof Error && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError')
                 ? 'No camera was found on this device.'
-                : `Could not start the camera. (${detail})`,
+                : `Camera error — please send me this text: ${detail}`,
           )
         }
       }
@@ -106,14 +131,14 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
         </DialogHeader>
 
         <div className="overflow-hidden rounded-xl bg-black">
-          <video ref={videoRef} className="aspect-square w-full object-cover" muted playsInline />
+          <video ref={videoRef} className="aspect-square w-full object-cover" muted playsInline autoPlay />
         </div>
 
         {error ? (
           <p className="text-center text-sm text-red-600">{error}</p>
         ) : (
           <p className="text-center text-sm text-stone-500">
-            Point the camera at a location QR code or a product barcode.
+            {PHASE_LABEL[phase as Exclude<Phase, 'error'>]}
           </p>
         )}
       </DialogContent>

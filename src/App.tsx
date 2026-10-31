@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { InventoryItem, Location } from '@/types/inventory'
 import { locationColor, parseLocationId } from '@/types/inventory'
+import { looksLikeBarcode } from '@/lib/openfoodfacts'
 import { useInventory } from '@/hooks/useInventory'
 import { useLocations } from '@/hooks/useLocations'
 import { Dashboard } from '@/sections/Dashboard'
@@ -57,12 +58,15 @@ export default function App() {
     else addItem(item)
   }
 
-  /** Header scanner: location QR -> add form for that location; anything else -> prefill the name. */
+  /** Header scanner: location QR -> add form for that location;
+   *  product barcode -> add form with OFF lookup; anything else -> prefill the name. */
   const handleScan = (text: string) => {
     setScanOpen(false)
     const locId = parseLocationId(text)
     if (locId && locations.some(l => l.id === locId)) {
       openAdd({ locationId: locId })
+    } else if (looksLikeBarcode(text)) {
+      openAdd({ barcode: text })
     } else {
       openAdd({ name: text.slice(0, 120) })
     }

@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import QrScanner from 'qr-scanner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Called with the decoded QR text. The parent usually closes the dialog. */
+  /** Called with the decoded QR/barcode text. The parent usually closes the dialog. */
   onScan: (text: string) => void
   title?: string
 }
 
-export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan QR code' }: Props) {
+/**
+ * Camera scanner for QR codes AND product barcodes (EAN/UPC/Code 128…).
+ * The zxing library is lazy-loaded so it stays out of the main bundle.
+ */
+export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const scannerRef = useRef<QrScanner | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -20,39 +22,38 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan QR code' 
     setError(null)
 
     let cancelled = false
-    const video = videoRef.current
-    if (!video) return
+    let controls: { stop: () => void } | null = null
 
-    const scanner = new QrScanner(
-      video,
-      result => {
+    ;(async () => {
+      const video = videoRef.current
+      if (!video) return
+      try {
+        const { BrowserMultiFormatReader } = await import('@zxing/browser')
         if (cancelled) return
-        cancelled = true // fire once
-        scanner.destroy()
-        scannerRef.current = null
-        onScan(result.data)
-      },
-      {
-        returnDetailedScanResult: true,
-        highlightScanRegion: true,
-        preferredCamera: 'environment',
-      },
-    )
-    scannerRef.current = scanner
-    scanner.start().catch((e: unknown) => {
-      if (!cancelled) {
-        setError(
-          e instanceof Error && e.name === 'NotAllowedError'
-            ? 'Camera access was denied. Allow camera permission and try again.'
-            : 'Could not start the camera on this device.',
-        )
+        const reader = new BrowserMultiFormatReader()
+        controls = await reader.decodeFromVideoDevice(undefined, video, result => {
+          if (result && !cancelled) {
+            cancelled = true
+            const text = result.getText()
+            controls?.stop()
+            onScan(text)
+          }
+        })
+        if (cancelled) controls.stop()
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error && e.name === 'NotAllowedError'
+              ? 'Camera access was denied. Allow camera permission and try again.'
+              : 'Could not start the camera on this device.',
+          )
+        }
       }
-    })
+    })()
 
     return () => {
       cancelled = true
-      scanner.destroy()
-      scannerRef.current = null
+      controls?.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -65,7 +66,6 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan QR code' 
         </DialogHeader>
 
         <div className="overflow-hidden rounded-xl bg-black">
-          {/* qr-scanner attaches to this video element */}
           <video ref={videoRef} className="aspect-square w-full object-cover" muted playsInline />
         </div>
 
@@ -73,7 +73,7 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan QR code' 
           <p className="text-center text-sm text-red-600">{error}</p>
         ) : (
           <p className="text-center text-sm text-stone-500">
-            Point the camera at a location QR code.
+            Point the camera at a location QR code or a product barcode.
           </p>
         )}
       </DialogContent>

@@ -8,14 +8,17 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Minus, Plus, ScanLine, Trash2 } from 'lucide-react'
+import { Barcode, Minus, Plus, ScanLine, Trash2 } from 'lucide-react'
 import type { InventoryItem, ItemCategory, Location } from '@/types/inventory'
 import { CATEGORIES, UNITS, newId, parseLocationId } from '@/types/inventory'
+import { looksLikeBarcode, lookupProduct } from '@/lib/openfoodfacts'
 import { ScanDialog } from '@/components/ScanDialog'
 
 export interface ItemDraft {
   name?: string
   locationId?: string
+  /** product barcode to look up when the form opens */
+  barcode?: string
 }
 
 interface Props {
@@ -23,7 +26,7 @@ interface Props {
   onOpenChange: (open: boolean) => void
   /** null = adding a new item */
   item: InventoryItem | null
-  /** prefill for new items (from deep link or QR scan) */
+  /** prefill for new items (from deep link or scan) */
   draft: ItemDraft | null
   locations: Location[]
   onSave: (item: InventoryItem) => void
@@ -36,6 +39,12 @@ function defaultExpiry(): string {
   return d.toISOString().slice(0, 10)
 }
 
+type LookupState =
+  | { kind: 'idle' }
+  | { kind: 'searching'; barcode: string }
+  | { kind: 'found'; name: string }
+  | { kind: 'miss'; barcode: string }
+
 export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onSave, onDelete }: Props) {
   const [name, setName] = useState('')
   const [locationId, setLocationId] = useState('')
@@ -45,8 +54,9 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
   const [hasExpiry, setHasExpiry] = useState(false)
   const [expiryDate, setExpiryDate] = useState(defaultExpiry())
   const [notes, setNotes] = useState('')
-  const [scanOpen, setScanOpen] = useState(false)
+  const [scanPurpose, setScanPurpose] = useState<'location' | 'barcode' | null>(null)
   const [scanMsg, setScanMsg] = useState<string | null>(null)
+  const [lookup, setLookup] = useState<LookupState>({ kind: 'idle' })
 
   // Reset the form every time the dialog opens
   useEffect(() => {
@@ -64,7 +74,32 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
     setExpiryDate(item?.expiryDate ?? defaultExpiry())
     setNotes(item?.notes ?? '')
     setScanMsg(null)
+    setLookup({ kind: 'idle' })
   }, [open, item, draft, locations])
+
+  // Barcode lookup when the form opens with a scanned barcode
+  useEffect(() => {
+    if (!open || item || !draft?.barcode) return
+    const barcode = draft.barcode
+    let cancelled = false
+    setLookup({ kind: 'searching', barcode })
+    lookupProduct(barcode).then(info => {
+      if (cancelled) return
+      if (info?.name) {
+        setLookup({ kind: 'found', name: info.name })
+        setName(info.name)
+        if (info.quantity != null && info.unit) {
+          setQuantity(info.quantity)
+          setUnit(info.unit)
+        }
+        if (info.brand) setNotes(prev => prev || info.brand!)
+      } else {
+        setLookup({ kind: 'miss', barcode })
+        setNotes(prev => prev || `Barcode ${barcode}`)
+      }
+    })
+    return () => { cancelled = true }
+  }, [open, item, draft])
 
   const trimmed = name.trim()
 
@@ -88,14 +123,42 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
     setQuantity(q => Math.max(0, Math.round((q + delta) * 10) / 10))
 
   const handleScan = (text: string) => {
-    setScanOpen(false)
-    const id = parseLocationId(text)
-    if (id && locations.some(l => l.id === id)) {
-      setLocationId(id)
-      setScanMsg(null)
-    } else {
-      setScanMsg('That QR code is not one of your locations.')
+    setScanPurpose(null)
+    if (scanPurpose === 'location') {
+      const id = parseLocationId(text)
+      if (id && locations.some(l => l.id === id)) {
+        setLocationId(id)
+        setScanMsg(null)
+      } else {
+        setScanMsg('That code is not one of your location QRs.')
+      }
+      return
     }
+    // barcode scan from within the form
+    const locId = parseLocationId(text)
+    if (locId && locations.some(l => l.id === locId)) {
+      setLocationId(locId)
+      return
+    }
+    if (looksLikeBarcode(text)) {
+      setLookup({ kind: 'searching', barcode: text })
+      lookupProduct(text).then(info => {
+        if (info?.name) {
+          setLookup({ kind: 'found', name: info.name })
+          setName(info.name)
+          if (info.quantity != null && info.unit) {
+            setQuantity(info.quantity)
+            setUnit(info.unit)
+          }
+          if (info.brand) setNotes(prev => prev || info.brand!)
+        } else {
+          setLookup({ kind: 'miss', barcode: text })
+          setNotes(prev => prev || `Barcode ${text}`)
+        }
+      })
+      return
+    }
+    setName(prev => prev || text.slice(0, 120))
   }
 
   return (
@@ -109,13 +172,36 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
           <div className="grid gap-5 py-2">
             <div className="grid gap-2">
               <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                placeholder="e.g. Greek yogurt"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                autoFocus
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="name"
+                  placeholder="e.g. Greek yogurt"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  autoFocus
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Scan product barcode"
+                  onClick={() => setScanPurpose('barcode')}
+                >
+                  <Barcode className="h-4 w-4" />
+                </Button>
+              </div>
+              {lookup.kind === 'searching' && (
+                <p className="text-xs text-stone-500">Looking up barcode {lookup.barcode}…</p>
+              )}
+              {lookup.kind === 'found' && (
+                <p className="text-xs text-emerald-600">Found: {lookup.name}</p>
+              )}
+              {lookup.kind === 'miss' && (
+                <p className="text-xs text-amber-600">
+                  Barcode {lookup.barcode} not in Open Food Facts — fill in the name yourself.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -134,7 +220,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
                   variant="outline"
                   size="icon"
                   aria-label="Scan location QR"
-                  onClick={() => setScanOpen(true)}
+                  onClick={() => setScanPurpose('location')}
                 >
                   <ScanLine className="h-4 w-4" />
                 </Button>
@@ -222,10 +308,10 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
       </Dialog>
 
       <ScanDialog
-        open={scanOpen}
-        onOpenChange={setScanOpen}
+        open={scanPurpose !== null}
+        onOpenChange={o => !o && setScanPurpose(null)}
         onScan={handleScan}
-        title="Scan location QR"
+        title={scanPurpose === 'location' ? 'Scan location QR' : 'Scan product barcode'}
       />
     </>
   )

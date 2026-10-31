@@ -23,6 +23,17 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
 
     let cancelled = false
     let controls: { stop: () => void } | null = null
+    let streamStarted = false
+
+    // If nothing has started after 6s, the camera is unavailable or the
+    // permission prompt was blocked — tell the user instead of showing black.
+    const watchdog = setTimeout(() => {
+      if (!cancelled && !streamStarted) {
+        setError(
+          'The camera is not available in this browser. Check that this device has a camera and that browser camera permission is allowed — or use the app on your phone instead.',
+        )
+      }
+    }, 6000)
 
     ;(async () => {
       const video = videoRef.current
@@ -39,13 +50,21 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
             onScan(text)
           }
         })
+        streamStarted = !!video.srcObject
+        clearTimeout(watchdog)
+        if (!streamStarted && !cancelled) {
+          setError('The camera started but no video is arriving. Try another browser or your phone.')
+        }
         if (cancelled) controls.stop()
       } catch (e) {
+        clearTimeout(watchdog)
         if (!cancelled) {
           setError(
             e instanceof Error && e.name === 'NotAllowedError'
               ? 'Camera access was denied. Allow camera permission and try again.'
-              : 'Could not start the camera on this device.',
+              : e instanceof Error && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError')
+                ? 'No camera was found on this device.'
+                : 'Could not start the camera on this device.',
           )
         }
       }
@@ -53,6 +72,7 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
 
     return () => {
       cancelled = true
+      clearTimeout(watchdog)
       controls?.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

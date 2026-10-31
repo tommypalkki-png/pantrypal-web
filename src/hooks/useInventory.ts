@@ -27,9 +27,10 @@ export function useInventory() {
   }, [items])
 
   const addItem = (item: InventoryItem) => setItems(prev => [...prev, item])
+  const addItems = (batch: InventoryItem[]) => setItems(prev => [...prev, ...batch])
   const updateItem = (item: InventoryItem) =>
     setItems(prev => prev.map(p => (p.id === item.id ? item : p)))
   const deleteItem = (id: string) => setItems(prev => prev.filter(p => p.id !== id))
 
-  return { items, addItem, updateItem, deleteItem }
+  return { items, addItem, addItems, updateItem, deleteItem }
 }

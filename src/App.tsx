@@ -11,6 +11,7 @@ import { LocationView } from '@/sections/LocationView'
 import { ShoppingListView } from '@/sections/ShoppingListView'
 import { RecipesView } from '@/sections/RecipesView'
 import { ItemFormDialog, type ItemDraft } from '@/components/ItemFormDialog'
+import { BulkAddDialog } from '@/components/BulkAddDialog'
 import { ManageLocationsDialog } from '@/components/ManageLocationsDialog'
 import { LocationQRDialog } from '@/components/LocationQRDialog'
 import { ScanDialog } from '@/components/ScanDialog'
@@ -21,7 +22,7 @@ const SHOP = 'shop'
 const RECIPES = 'recipes'
 
 export default function App() {
-  const { items, addItem, updateItem, deleteItem } = useInventory()
+  const { items, addItem, addItems, updateItem, deleteItem } = useInventory()
   const { locations, addLocation, renameLocation, deleteLocation } = useLocations()
   const { extras, addExtras, removeExtra } = useShoppingExtras()
   const { customRecipes, addRecipe, deleteRecipe } = useCustomRecipes()
@@ -33,6 +34,7 @@ export default function App() {
   const [manageOpen, setManageOpen] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
   const [scanOpen, setScanOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   // Deep link: ?add=1&loc=<id> opens the add form for that location
   // (this is what the printed location QR codes encode).
@@ -111,20 +113,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v11
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v12
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v11
+                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v12
               </p>
             )}
             {tab === RECIPES && (
               <p className="mt-0.5 text-sm text-stone-400">
-                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v11
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v12
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v11</p>}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v12</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -179,6 +181,7 @@ export default function App() {
             location={activeLocation}
             items={items}
             onAdd={() => openAdd({ locationId: activeLocation.id })}
+            onBulkAdd={() => setBulkOpen(true)}
             onSelectItem={openEdit}
           />
         )}
@@ -255,6 +258,15 @@ export default function App() {
         onDelete={handleDeleteLocation}
         onShowQRCodes={() => { setManageOpen(false); setQrOpen(true) }}
       />
+
+      {activeLocation && (
+        <BulkAddDialog
+          open={bulkOpen}
+          onOpenChange={setBulkOpen}
+          location={activeLocation}
+          onSave={addItems}
+        />
+      )}
 
       <LocationQRDialog open={qrOpen} onOpenChange={setQrOpen} locations={locations} />
 

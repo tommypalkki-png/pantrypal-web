@@ -2,16 +2,17 @@ import { useMemo, useState } from 'react'
 import type { InventoryItem, ItemCategory, Location } from '@/types/inventory'
 import { CATEGORIES, daysUntilExpiry, locationColor } from '@/types/inventory'
 import { ItemRow } from '@/components/ItemRow'
-import { Plus, Search } from 'lucide-react'
+import { ListPlus, Plus, Search } from 'lucide-react'
 
 interface Props {
   location: Location
   items: InventoryItem[]
   onAdd: () => void
+  onBulkAdd: () => void
   onSelectItem: (item: InventoryItem) => void
 }
 
-export function LocationView({ location, items, onAdd, onSelectItem }: Props) {
+export function LocationView({ location, items, onAdd, onBulkAdd, onSelectItem }: Props) {
   const [query, setQuery] = useState('')
   const c = locationColor(location)
 
@@ -59,6 +60,16 @@ export function LocationView({ location, items, onAdd, onSelectItem }: Props) {
           className="w-full rounded-xl border-0 bg-white py-2.5 pl-9 pr-3 text-[15px] shadow-sm ring-1 ring-stone-200/60 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
         />
       </div>
+
+      {/* Bulk add */}
+      <button
+        type="button"
+        onClick={onBulkAdd}
+        className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-white py-2.5 text-sm font-medium text-stone-500 shadow-sm ring-1 ring-stone-200/60 transition-transform active:scale-[0.98]"
+      >
+        <ListPlus className="h-4 w-4" />
+        Bulk add — paste a whole list at once
+      </button>
 
       {isEmpty ? (
         <div className="mt-10 flex flex-col items-center gap-3 text-center">

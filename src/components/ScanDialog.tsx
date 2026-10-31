@@ -112,29 +112,45 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
       }
       const zxingReader = detector ? null : new BrowserMultiFormatReader()
 
-      while (!cancelled) {
-        try {
-          let text: string | null = null
-          if (detector) {
+      if (detector) {
+        // Native OS decoder — poll frames.
+        while (!cancelled) {
+          try {
+            let text: string | null = null
             if (video.readyState >= 2) {
               const codes = await detector.detect(video)
               if (codes.length > 0) text = codes[0].rawValue
             } else {
               await sleep(200)
             }
-          } else if (zxingReader) {
-            const result = await zxingReader.decodeFromVideoElement(video)
-            text = result ? result.getText() : null
+            if (text && !cancelled) {
+              cancelled = true
+              stream.getTracks().forEach(t => t.stop())
+              onScan(text)
+              return
+            }
+          } catch {
+            await sleep(150)
           }
-          if (text && !cancelled) {
-            cancelled = true
-            stream.getTracks().forEach(t => t.stop())
-            onScan(text)
-            return
-          }
-        } catch {
-          await sleep(150) // no code in frame yet — keep scanning
         }
+      } else if (zxingReader) {
+        // zxing fallback — continuous callback-based decoding.
+        let zxingControls: { stop: () => void } | null = null
+        zxingReader.decodeFromVideoElement(video, result => {
+          if (result && !cancelled) {
+            cancelled = true
+            const text = result.getText()
+            zxingControls?.stop()
+            stream?.getTracks().forEach(t => t.stop())
+            onScan(text)
+          }
+        })
+          .then(controls => { zxingControls = controls })
+          .catch(() => {})
+        while (!cancelled) {
+          await sleep(200)
+        }
+        zxingControls?.stop()
       }
     })()
 

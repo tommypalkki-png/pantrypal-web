@@ -29,6 +29,7 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
   const videoRef = useRef<HTMLVideoElement>(null)
   const [phase, setPhase] = useState<Phase>('loading')
   const [error, setError] = useState<string | null>(null)
+  const [slowHint, setSlowHint] = useState(false)
   const phaseRef = useRef<Phase>('loading')
 
   useEffect(() => {
@@ -38,22 +39,18 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
   useEffect(() => {
     if (!open) return
     setError(null)
+    setSlowHint(false)
     setPhase('loading')
     phaseRef.current = 'loading'
 
     let cancelled = false
     let controls: { stop: () => void } | null = null
 
-    // If the camera request neither resolves nor rejects within 10s, iOS has
-    // hung it — report exactly which step we were on.
-    const watchdog = setTimeout(() => {
-      if (!cancelled) {
-        setError(
-          `Camera did not respond within 10s (stuck at: "${PHASE_LABEL[phaseRef.current as Exclude<Phase, 'error'>] ?? phaseRef.current}"). ` +
-          `iOS gave no error — fully close the app and try again, or check Settings → Safari → Camera. [v3]`,
-        )
-      }
-    }, 10_000)
+    // If things take unusually long (slow network downloading the decoder,
+    // or iOS hanging the camera request), say so — but keep trying.
+    const slowTimer = setTimeout(() => {
+      if (!cancelled) setSlowHint(true)
+    }, 15_000)
 
     ;(async () => {
       const video = videoRef.current
@@ -91,7 +88,7 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
         }
         if (!controls) throw lastErr ?? new Error('unknown camera error')
 
-        clearTimeout(watchdog)
+        clearTimeout(slowTimer)
         if (!video.srcObject) {
           setError('The camera stream was accepted but no video is arriving. Fully close the app and try again.')
         } else {
@@ -101,7 +98,7 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
         }
         if (cancelled) controls.stop()
       } catch (e) {
-        clearTimeout(watchdog)
+        clearTimeout(slowTimer)
         if (!cancelled) {
           const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
           setError(
@@ -117,7 +114,7 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
 
     return () => {
       cancelled = true
-      clearTimeout(watchdog)
+      clearTimeout(slowTimer)
       controls?.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,9 +134,17 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
         {error ? (
           <p className="text-center text-sm text-red-600">{error}</p>
         ) : (
-          <p className="text-center text-sm text-stone-500">
-            {PHASE_LABEL[phase as Exclude<Phase, 'error'>]}
-          </p>
+          <div>
+            <p className="text-center text-sm text-stone-500">
+              {PHASE_LABEL[phase as Exclude<Phase, 'error'>]}
+            </p>
+            {slowHint && phase !== 'decoding' && (
+              <p className="mt-1 text-center text-xs text-amber-600">
+                Taking longer than usual — usually a slow connection downloading the
+                scanner. Keep this open a few more seconds; it should start on its own.
+              </p>
+            )}
+          </div>
         )}
       </DialogContent>
     </Dialog>

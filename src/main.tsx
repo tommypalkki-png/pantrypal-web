@@ -11,3 +11,9 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>,
 )
+
+// Warm up the barcode-scanner chunk in the background so tapping Scan
+// doesn't have to download 450 KB first (slow connections were timing out).
+setTimeout(() => {
+  import('@zxing/browser').catch(() => {})
+}, 1500)

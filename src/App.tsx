@@ -111,20 +111,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v10
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v11
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v10
+                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v11
               </p>
             )}
             {tab === RECIPES && (
               <p className="mt-0.5 text-sm text-stone-400">
-                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v10
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v11
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v10</p>}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v11</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -169,6 +169,8 @@ export default function App() {
           <Dashboard
             items={items}
             locations={locations}
+            customRecipes={customRecipes}
+            onOpenRecipes={() => setTab(RECIPES)}
             onSelectLocation={setTab}
             onSelectItem={openEdit}
           />

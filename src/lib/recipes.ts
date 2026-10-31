@@ -170,7 +170,7 @@ export async function recipeDetails(id: string): Promise<Recipe | null> {
  */
 export async function recommendRecipes(
   items: InventoryItem[],
-  { maxResults = 8 }: { maxResults?: number } = {},
+  { maxResults = 8, candidateLimit = 24 }: { maxResults?: number; candidateLimit?: number } = {},
 ): Promise<ScoredRecipe[]> {
   const pantry = pantryIngredients(items)
   if (pantry.length === 0) return []
@@ -199,7 +199,7 @@ export async function recommendRecipes(
   }
 
   // Score by fetching full details (bounded for speed).
-  const top = [...candidates.values()].slice(0, 24)
+  const top = [...candidates.values()].slice(0, candidateLimit)
   const details = await Promise.all(top.map(r => recipeDetails(r.id)))
   const scored: ScoredRecipe[] = []
   for (const d of details) {

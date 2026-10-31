@@ -1,16 +1,20 @@
 import type { InventoryItem, Location } from '@/types/inventory'
 import { daysUntilExpiry, expiryStatus, locationColor } from '@/types/inventory'
+import type { CustomRecipeInput } from '@/lib/recipes'
 import { ItemRow } from '@/components/ItemRow'
+import { RecipeBanner } from '@/components/RecipeBanner'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 interface Props {
   items: InventoryItem[]
   locations: Location[]
+  customRecipes: CustomRecipeInput[]
+  onOpenRecipes: () => void
   onSelectLocation: (locationId: string) => void
   onSelectItem: (item: InventoryItem) => void
 }
 
-export function Dashboard({ items, locations, onSelectLocation, onSelectItem }: Props) {
+export function Dashboard({ items, locations, customRecipes, onOpenRecipes, onSelectLocation, onSelectItem }: Props) {
   const byId = new Map(locations.map(l => [l.id, l]))
 
   const attention = items
@@ -22,6 +26,9 @@ export function Dashboard({ items, locations, onSelectLocation, onSelectItem }: 
 
   return (
     <div className="grid gap-6 px-4 pb-28 pt-5">
+      {/* Tonight's pick */}
+      <RecipeBanner items={items} customRecipes={customRecipes} onOpenRecipes={onOpenRecipes} />
+
       {/* Location cards */}
       <div className="grid grid-cols-3 gap-3">
         {locations.map(loc => {

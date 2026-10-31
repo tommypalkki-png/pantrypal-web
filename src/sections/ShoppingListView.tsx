@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { InventoryItem, Location } from '@/types/inventory'
-import { CATEGORIES, formatQuantity, isLowStock, locationColor } from '@/types/inventory'
-import { Check, ShoppingCart } from 'lucide-react'
+import { CATEGORIES, formatQuantity, isLowStock, itemStore, locationColor } from '@/types/inventory'
+import { Check, ShoppingCart, Store } from 'lucide-react'
 
 interface Props {
   items: InventoryItem[]
@@ -9,14 +9,30 @@ interface Props {
   onSelectItem: (item: InventoryItem) => void
 }
 
+/** Group label for items with no store set. */
+const NO_STORE = 'No store listed'
+
 export function ShoppingListView({ items, locations, onSelectItem }: Props) {
   // checked-off ids (session only — for ticking things off while walking the aisles)
   const [checked, setChecked] = useState<Set<string>>(new Set())
 
   const byId = new Map(locations.map(l => [l.id, l]))
-  const lowItems = items
-    .filter(isLowStock)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const lowItems = items.filter(isLowStock)
+
+  // Group by store: named stores A→Z first, "No store listed" last.
+  const groups = new Map<string, InventoryItem[]>()
+  for (const item of lowItems) {
+    const key = itemStore(item) || NO_STORE
+    const list = groups.get(key)
+    if (list) list.push(item)
+    else groups.set(key, [item])
+  }
+  const storeNames = [...groups.keys()].sort((a, b) => {
+    if (a === NO_STORE) return 1
+    if (b === NO_STORE) return -1
+    return a.localeCompare(b)
+  })
+  for (const list of groups.values()) list.sort((a, b) => a.name.localeCompare(b.name))
 
   const toggle = (id: string) =>
     setChecked(prev => {
@@ -44,64 +60,83 @@ export function ShoppingListView({ items, locations, onSelectItem }: Props) {
           <p className="px-1 text-sm text-stone-500">
             {remaining === 0
               ? 'All ticked — happy shopping! 🎉'
-              : `${remaining} item${remaining === 1 ? '' : 's'} to buy`}
+              : `${remaining} item${remaining === 1 ? '' : 's'} to buy · grouped by store`}
           </p>
 
-          <section className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200/60">
-            <div className="divide-y divide-stone-100">
-              {lowItems.map(item => {
-                const loc = byId.get(item.location)
-                const c = locationColor(loc)
-                const done = checked.has(item.id)
-                return (
-                  <div key={item.id} className="flex items-center gap-3 px-2 py-2.5">
-                    {/* Tick-off checkbox */}
-                    <button
-                      type="button"
-                      onClick={() => toggle(item.id)}
-                      aria-label={done ? 'Uncheck' : 'Check off'}
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                        done
-                          ? 'border-emerald-500 bg-emerald-500 text-white'
-                          : 'border-stone-300 text-transparent hover:border-stone-400'
-                      }`}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </button>
+          {storeNames.map(storeName => {
+            const list = groups.get(storeName)!
+            const isFallback = storeName === NO_STORE
+            const leftToBuy = list.filter(i => !checked.has(i.id)).length
+            return (
+              <section
+                key={storeName}
+                className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200/60"
+              >
+                <header className="flex items-center gap-2 px-2 pb-2 pt-1">
+                  <Store className={`h-4 w-4 ${isFallback ? 'text-stone-300' : 'text-amber-600'}`} />
+                  <h2 className={`text-sm font-semibold ${isFallback ? 'text-stone-400' : 'text-stone-700'}`}>
+                    {storeName}
+                  </h2>
+                  <span className="ml-auto text-xs text-stone-400">
+                    {leftToBuy === 0 ? 'done ✓' : `${leftToBuy} to buy`}
+                  </span>
+                </header>
+                <div className="divide-y divide-stone-100">
+                  {list.map(item => {
+                    const loc = byId.get(item.location)
+                    const c = locationColor(loc)
+                    const done = checked.has(item.id)
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 px-2 py-2.5">
+                        {/* Tick-off checkbox */}
+                        <button
+                          type="button"
+                          onClick={() => toggle(item.id)}
+                          aria-label={done ? 'Uncheck' : 'Check off'}
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                            done
+                              ? 'border-emerald-500 bg-emerald-500 text-white'
+                              : 'border-stone-300 text-transparent hover:border-stone-400'
+                          }`}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
 
-                    <span
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${c.tile}`}
-                    >
-                      {loc?.emoji ?? CATEGORIES[item.category].emoji}
-                    </span>
+                        <span
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${c.tile}`}
+                        >
+                          {loc?.emoji ?? CATEGORIES[item.category].emoji}
+                        </span>
 
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={`block truncate text-[15px] font-medium ${
-                          done ? 'text-stone-400 line-through' : 'text-stone-800'
-                        }`}
-                      >
-                        {item.name}
-                      </span>
-                      <span className="block truncate text-xs text-stone-400">
-                        {loc ? `${loc.name} · ` : ''}
-                        {formatQuantity(item)} left
-                        {item.restockAt != null && ` · restocks at ${item.restockAt}`}
-                      </span>
-                    </span>
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className={`block truncate text-[15px] font-medium ${
+                              done ? 'text-stone-400 line-through' : 'text-stone-800'
+                            }`}
+                          >
+                            {item.name}
+                          </span>
+                          <span className="block truncate text-xs text-stone-400">
+                            {loc ? `${loc.name} · ` : ''}
+                            {formatQuantity(item)} left
+                            {item.restockAt != null && ` · restocks at ${item.restockAt}`}
+                          </span>
+                        </span>
 
-                    <button
-                      type="button"
-                      onClick={() => onSelectItem(item)}
-                      className="shrink-0 rounded-full bg-stone-800 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
-                    >
-                      Restock
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
+                        <button
+                          type="button"
+                          onClick={() => onSelectItem(item)}
+                          className="shrink-0 rounded-full bg-stone-800 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
+                        >
+                          Restock
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )
+          })}
 
           <p className="px-1 text-center text-xs text-stone-400">
             Tap Restock after buying to update the quantity — the item leaves

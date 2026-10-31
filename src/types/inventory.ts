@@ -89,6 +89,16 @@ export interface InventoryItem {
    * null/undefined = auto-add disabled. (Optional for pre-v7 stored data.)
    */
   restockAt?: number | null
+  /**
+   * Store the item is usually bought at — used to group the shopping list.
+   * Free text; empty/undefined = no store. (Optional for pre-v8 stored data.)
+   */
+  store?: string
+}
+
+/** Display label for an item's store (fallback when unset). */
+export function itemStore(item: InventoryItem): string {
+  return item.store?.trim() || ''
 }
 
 /** True when the item should appear on the shopping list. */
@@ -215,6 +225,11 @@ export function sampleItems(): InventoryItem[] {
   // Demo the low-stock rule: milk and eggs auto-join the shopping list when running out.
   for (const item of items) {
     if (item.name === 'Whole milk' || item.name === 'Eggs') item.restockAt = 1
+  }
+  // Demo store grouping on the shopping list.
+  for (const item of items) {
+    if (item.name === 'Whole milk' || item.name === 'Greek yogurt' || item.name === 'Orange juice') item.store = 'Costco'
+    if (item.name === 'Eggs' || item.name === 'Chicken breast' || item.name === 'Baby spinach') item.store = 'Trader Joe’s'
   }
   return items
 }

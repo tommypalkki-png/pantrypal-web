@@ -29,6 +29,8 @@ interface Props {
   /** prefill for new items (from deep link or scan) */
   draft: ItemDraft | null
   locations: Location[]
+  /** store names already in use — offered as autocomplete suggestions */
+  stores?: string[]
   onSave: (item: InventoryItem) => void
   onDelete?: (id: string) => void
 }
@@ -45,7 +47,7 @@ type LookupState =
   | { kind: 'found'; name: string }
   | { kind: 'miss'; barcode: string }
 
-export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onSave, onDelete }: Props) {
+export function ItemFormDialog({ open, onOpenChange, item, draft, locations, stores = [], onSave, onDelete }: Props) {
   const [name, setName] = useState('')
   const [locationId, setLocationId] = useState('')
   const [category, setCategory] = useState<ItemCategory>('other')
@@ -55,6 +57,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
   const [expiryDate, setExpiryDate] = useState(defaultExpiry())
   const [restockEnabled, setRestockEnabled] = useState(false)
   const [restockAt, setRestockAt] = useState(1)
+  const [store, setStore] = useState('')
   const [notes, setNotes] = useState('')
   const [scanPurpose, setScanPurpose] = useState<'location' | 'barcode' | null>(null)
   const [scanMsg, setScanMsg] = useState<string | null>(null)
@@ -76,6 +79,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
     setExpiryDate(item?.expiryDate ?? defaultExpiry())
     setRestockEnabled(item?.restockAt != null)
     setRestockAt(item?.restockAt ?? 1)
+    setStore(item?.store ?? '')
     setNotes(item?.notes ?? '')
     setScanMsg(null)
     setLookup({ kind: 'idle' })
@@ -120,6 +124,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
       dateAdded: item?.dateAdded ?? Date.now(),
       notes: notes.trim(),
       restockAt: restockEnabled ? restockAt : null,
+      store: store.trim() || undefined,
     })
     onOpenChange(false)
   }
@@ -314,6 +319,20 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, onS
                   <span className="text-sm text-stone-500">or below</span>
                 </div>
               )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store">Store (optional)</Label>
+              <Input
+                id="store"
+                list="store-suggestions"
+                placeholder="e.g. Costco — groups your shopping list"
+                value={store}
+                onChange={e => setStore(e.target.value)}
+              />
+              <datalist id="store-suggestions">
+                {stores.map(s => <option key={s} value={s} />)}
+              </datalist>
             </div>
 
             <div className="grid gap-2">

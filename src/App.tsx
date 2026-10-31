@@ -85,6 +85,11 @@ export default function App() {
 
   const lowCount = items.filter(isLowStock).length
 
+  // Distinct store names in use — autocomplete suggestions in the item form.
+  const storeNames = [...new Set(
+    items.map(i => i.store?.trim()).filter((s): s is string => !!s),
+  )].sort((a, b) => a.localeCompare(b))
+
   const title =
     tab === HOME ? 'Kitchen Inventory'
     : tab === SHOP ? 'Shopping List'
@@ -99,15 +104,15 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v7
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v8
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} low in stock · v7
+                {lowCount} item{lowCount === 1 ? '' : 's'} low in stock · v8
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && <p className="mt-0.5 text-sm text-stone-400">v7</p>}
+            {tab !== HOME && tab !== SHOP && <p className="mt-0.5 text-sm text-stone-400">v8</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -205,6 +210,7 @@ export default function App() {
         item={editingItem}
         draft={draft}
         locations={locations}
+        stores={storeNames}
         onSave={save}
         onDelete={deleteItem}
       />

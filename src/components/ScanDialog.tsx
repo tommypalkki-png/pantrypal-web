@@ -42,29 +42,49 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
         const { BrowserMultiFormatReader } = await import('@zxing/browser')
         if (cancelled) return
         const reader = new BrowserMultiFormatReader()
-        controls = await reader.decodeFromVideoDevice(undefined, video, result => {
+
+        const onResult = (result: { getText: () => string } | undefined) => {
           if (result && !cancelled) {
             cancelled = true
             const text = result.getText()
             controls?.stop()
             onScan(text)
           }
-        })
+        }
+
+        // iOS Safari often fails zxing's default device picking; ask for the
+        // rear camera explicitly, then fall back to any camera.
+        const attempts: MediaStreamConstraints[] = [
+          { video: { facingMode: 'environment' }, audio: false },
+          { video: true, audio: false },
+        ]
+        let lastErr: unknown = null
+        for (const constraints of attempts) {
+          try {
+            controls = await reader.decodeFromConstraints(constraints, video, onResult)
+            break
+          } catch (e) {
+            lastErr = e
+          }
+        }
+        if (!controls) throw lastErr ?? new Error('unknown camera error')
+
         streamStarted = !!video.srcObject
         clearTimeout(watchdog)
         if (!streamStarted && !cancelled) {
-          setError('The camera started but no video is arriving. Try another browser or your phone.')
+          setError('The camera started but no video is arriving. Try closing and reopening the app.')
         }
         if (cancelled) controls.stop()
       } catch (e) {
         clearTimeout(watchdog)
         if (!cancelled) {
+          const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
           setError(
             e instanceof Error && e.name === 'NotAllowedError'
-              ? 'Camera access was denied. Allow camera permission and try again.'
+              ? 'Camera access was denied. Check Settings → Safari → Camera (or the app\'s permissions) and try again.'
               : e instanceof Error && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError')
                 ? 'No camera was found on this device.'
-                : 'Could not start the camera on this device.',
+                : `Could not start the camera. (${detail})`,
           )
         }
       }

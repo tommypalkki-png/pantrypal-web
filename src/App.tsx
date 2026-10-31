@@ -7,14 +7,16 @@ import { useLocations } from '@/hooks/useLocations'
 import { Dashboard } from '@/sections/Dashboard'
 import { LocationView } from '@/sections/LocationView'
 import { ShoppingListView } from '@/sections/ShoppingListView'
+import { RecipesView } from '@/sections/RecipesView'
 import { ItemFormDialog, type ItemDraft } from '@/components/ItemFormDialog'
 import { ManageLocationsDialog } from '@/components/ManageLocationsDialog'
 import { LocationQRDialog } from '@/components/LocationQRDialog'
 import { ScanDialog } from '@/components/ScanDialog'
-import { House, Plus, ScanLine, Settings2, ShoppingCart } from 'lucide-react'
+import { ChefHat, House, Plus, ScanLine, Settings2, ShoppingCart } from 'lucide-react'
 
 const HOME = 'home'
 const SHOP = 'shop'
+const RECIPES = 'recipes'
 
 export default function App() {
   const { items, addItem, updateItem, deleteItem } = useInventory()
@@ -81,7 +83,7 @@ export default function App() {
   }
 
   const activeLocation: Location | undefined =
-    tab === HOME || tab === SHOP ? undefined : locations.find(l => l.id === tab)
+    tab === HOME || tab === SHOP || tab === RECIPES ? undefined : locations.find(l => l.id === tab)
 
   const lowCount = items.filter(isLowStock).length
 
@@ -93,6 +95,7 @@ export default function App() {
   const title =
     tab === HOME ? 'Kitchen Inventory'
     : tab === SHOP ? 'Shopping List'
+    : tab === RECIPES ? 'Dinner Ideas'
     : (activeLocation?.name ?? 'Kitchen Inventory')
 
   return (
@@ -104,15 +107,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v8
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v9
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} low in stock · v8
+                {lowCount} item{lowCount === 1 ? '' : 's'} low in stock · v9
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && <p className="mt-0.5 text-sm text-stone-400">v8</p>}
+            {tab === RECIPES && (
+              <p className="mt-0.5 text-sm text-stone-400">
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v9
+              </p>
+            )}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v9</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -143,6 +151,8 @@ export default function App() {
             locations={locations}
             onSelectItem={openEdit}
           />
+        ) : tab === RECIPES ? (
+          <RecipesView items={items} />
         ) : tab === HOME || !activeLocation ? (
           <Dashboard
             items={items}
@@ -186,6 +196,12 @@ export default function App() {
             badge={lowCount}
             icon={<ShoppingCart className="h-5 w-5" />}
             onClick={() => setTab(SHOP)}
+          />
+          <TabButton
+            active={tab === RECIPES}
+            label="Dinner"
+            icon={<ChefHat className="h-5 w-5" />}
+            onClick={() => setTab(RECIPES)}
           />
           {locations.map(loc => {
             const c = locationColor(loc)

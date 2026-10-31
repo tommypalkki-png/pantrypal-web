@@ -1,0 +1,213 @@
+import { useEffect, useState } from 'react'
+import type { InventoryItem } from '@/types/inventory'
+import { recommendRecipes, type ScoredRecipe } from '@/lib/recipes'
+import { ChefHat, ExternalLink, Loader2, RefreshCw, Youtube } from 'lucide-react'
+
+interface Props {
+  items: InventoryItem[]
+}
+
+type State =
+  | { kind: 'loading' }
+  | { kind: 'error' }
+  | { kind: 'ready'; recipes: ScoredRecipe[] }
+
+export function RecipesView({ items }: Props) {
+  const [state, setState] = useState<State>({ kind: 'loading' })
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [round, setRound] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    setState({ kind: 'loading' })
+    recommendRecipes(items)
+      .then(recipes => {
+        if (!cancelled) setState({ kind: 'ready', recipes })
+      })
+      .catch(() => {
+        if (!cancelled) setState({ kind: 'error' })
+      })
+    // Safety net: never spin forever on a stalled network.
+    const timeout = setTimeout(() => {
+      if (!cancelled) setState(s => (s.kind === 'loading' ? { kind: 'error' } : s))
+    }, 25_000)
+    return () => { cancelled = true; clearTimeout(timeout) }
+    // re-run only when the underlying item list content changes materially
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(items.map(i => i.id + i.name).sort()), round])
+
+  return (
+    <div className="grid gap-4 px-4 pb-28 pt-5">
+      {state.kind === 'loading' && (
+        <div className="mt-10 flex flex-col items-center gap-3 text-stone-400">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-sm">Finding dinners you can make…</p>
+        </div>
+      )}
+
+      {state.kind === 'error' && (
+        <div className="mt-6 rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-stone-200/60">
+          <p className="text-4xl">😕</p>
+          <p className="mt-3 font-medium text-stone-700">Couldn't reach the recipe service</p>
+          <p className="mt-1 text-sm text-stone-400">Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={() => setRound(r => r + 1)}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-4 py-2 text-sm font-semibold text-white active:scale-95"
+          >
+            <RefreshCw className="h-4 w-4" /> Retry
+          </button>
+        </div>
+      )}
+
+      {state.kind === 'ready' && state.recipes.length === 0 && (
+        <div className="mt-6 rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-stone-200/60">
+          <p className="text-4xl">🍽️</p>
+          <p className="mt-3 font-medium text-stone-700">No matching dinners found</p>
+          <p className="mt-1 text-sm leading-relaxed text-stone-400">
+            Add more ingredients to your pantry and I'll suggest dinners
+            based on what you have.
+          </p>
+        </div>
+      )}
+
+      {state.kind === 'ready' && state.recipes.length > 0 && (
+        <>
+          <div className="flex items-center justify-between px-1">
+            <p className="text-sm text-stone-500">
+              {state.recipes.length} dinner idea{state.recipes.length === 1 ? '' : 's'} from your ingredients
+            </p>
+            <button
+              type="button"
+              onClick={() => setRound(r => r + 1)}
+              aria-label="Refresh suggestions"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 hover:bg-stone-200"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+
+          {state.recipes.map(recipe => {
+            const pct = Math.round(recipe.score * 100)
+            const expanded = expandedId === recipe.id
+            return (
+              <section
+                key={recipe.id}
+                className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60"
+              >
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : recipe.id)}
+                  className="block w-full text-left"
+                >
+                  {recipe.thumb && (
+                    <img
+                      src={recipe.thumb}
+                      alt={recipe.name}
+                      loading="lazy"
+                      className="h-36 w-full object-cover"
+                    />
+                  )}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="text-[15px] font-semibold leading-snug text-stone-800">
+                        {recipe.name}
+                      </h2>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                          pct >= 70
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : pct >= 40
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-stone-100 text-stone-500'
+                        }`}
+                      >
+                        {pct}% match
+                      </span>
+                    </div>
+                    {(recipe.category || recipe.area) && (
+                      <p className="mt-1 text-xs text-stone-400">
+                        {[recipe.area, recipe.category].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs leading-relaxed text-stone-500">
+                      <span className="font-medium text-emerald-700">
+                        Uses {recipe.matched.length} you have:
+                      </span>{' '}
+                      {recipe.matched.slice(0, 5).join(', ')}
+                      {recipe.matched.length > 5 && ` +${recipe.matched.length - 5} more`}
+                    </p>
+                    {recipe.missing.length > 0 && (
+                      <p className="mt-1 text-xs leading-relaxed text-stone-500">
+                        <span className="font-medium text-amber-700">
+                          Missing {recipe.missing.length}:
+                        </span>{' '}
+                        {recipe.missing.slice(0, 5).join(', ')}
+                        {recipe.missing.length > 5 && ` +${recipe.missing.length - 5} more`}
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs font-medium text-stone-400">
+                      {expanded ? 'Tap to hide ▲' : 'Tap for recipe ▼'}
+                    </p>
+                  </div>
+                </button>
+
+                {expanded && (
+                  <div className="border-t border-stone-100 p-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                      Ingredients
+                    </h3>
+                    <ul className="mt-1.5 grid gap-0.5 text-sm text-stone-600">
+                      {recipe.ingredientLines.map((line, i) => (
+                        <li key={i}>• {line}</li>
+                      ))}
+                    </ul>
+                    {recipe.instructions && (
+                      <>
+                        <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
+                          Method
+                        </h3>
+                        <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-stone-600">
+                          {recipe.instructions}
+                        </p>
+                      </>
+                    )}
+                    {(recipe.sourceUrl || recipe.youtubeUrl) && (
+                      <div className="mt-4 flex gap-2">
+                        {recipe.sourceUrl && (
+                          <a
+                            href={recipe.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-3.5 py-2 text-xs font-semibold text-white"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" /> Full recipe
+                          </a>
+                        )}
+                        {recipe.youtubeUrl && (
+                          <a
+                            href={recipe.youtubeUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3.5 py-2 text-xs font-semibold text-white"
+                          >
+                            <Youtube className="h-3.5 w-3.5" /> Video
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            )
+          })}
+
+          <p className="flex items-center justify-center gap-1.5 px-1 text-center text-xs text-stone-400">
+            <ChefHat className="h-3.5 w-3.5" />
+            Recipes by TheMealDB · match % = ingredients you already have
+          </p>
+        </>
+      )}
+    </div>
+  )
+}

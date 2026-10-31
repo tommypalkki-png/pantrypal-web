@@ -113,20 +113,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v12
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v13
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v12
+                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v13
               </p>
             )}
             {tab === RECIPES && (
               <p className="mt-0.5 text-sm text-stone-400">
-                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v12
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v13
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v12</p>}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v13</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -264,6 +264,7 @@ export default function App() {
           open={bulkOpen}
           onOpenChange={setBulkOpen}
           location={activeLocation}
+          locations={locations}
           onSave={addItems}
         />
       )}

@@ -69,17 +69,26 @@ export default function App() {
   }
 
   /** Header scanner: location QR -> add form for that location;
-   *  product barcode -> add form with OFF lookup; anything else -> prefill the name. */
+   *  known product barcode -> open the existing listing;
+   *  new product barcode -> add form with OFF lookup; anything else -> prefill the name. */
   const handleScan = (text: string) => {
     setScanOpen(false)
     const locId = parseLocationId(text)
     if (locId && locations.some(l => l.id === locId)) {
       openAdd({ locationId: locId })
-    } else if (looksLikeBarcode(text)) {
-      openAdd({ barcode: text })
-    } else {
-      openAdd({ name: text.slice(0, 120) })
+      return
     }
+    if (looksLikeBarcode(text)) {
+      // Already stocked? Bring up that listing instead of a duplicate form.
+      const existing = items.find(i => i.barcode === text)
+      if (existing) {
+        openEdit(existing)
+        return
+      }
+      openAdd({ barcode: text })
+      return
+    }
+    openAdd({ name: text.slice(0, 120) })
   }
 
   const handleDeleteLocation = (id: string) => {
@@ -113,20 +122,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v14
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v15
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v14
+                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v15
               </p>
             )}
             {tab === RECIPES && (
               <p className="mt-0.5 text-sm text-stone-400">
-                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v14
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v15
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v14</p>}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v15</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button

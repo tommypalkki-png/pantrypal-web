@@ -94,6 +94,12 @@ export interface InventoryItem {
    * Free text; empty/undefined = no store. (Optional for pre-v8 stored data.)
    */
   store?: string
+  /**
+   * Product barcode (EAN/UPC) captured when the item was added via scan.
+   * Lets a re-scan open this listing instead of creating a duplicate.
+   * (Optional for pre-v15 stored data.)
+   */
+  barcode?: string
 }
 
 /** Display label for an item's store (fallback when unset). */

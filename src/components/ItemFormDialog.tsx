@@ -58,6 +58,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
   const [restockEnabled, setRestockEnabled] = useState(false)
   const [restockAt, setRestockAt] = useState(1)
   const [store, setStore] = useState('')
+  const [barcode, setBarcode] = useState('')
   const [notes, setNotes] = useState('')
   const [scanPurpose, setScanPurpose] = useState<'location' | 'barcode' | null>(null)
   const [scanMsg, setScanMsg] = useState<string | null>(null)
@@ -80,6 +81,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
     setRestockEnabled(item?.restockAt != null)
     setRestockAt(item?.restockAt ?? 1)
     setStore(item?.store ?? '')
+    setBarcode(item?.barcode ?? draft?.barcode ?? '')
     setNotes(item?.notes ?? '')
     setScanMsg(null)
     setLookup({ kind: 'idle' })
@@ -125,6 +127,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
       notes: notes.trim(),
       restockAt: restockEnabled ? restockAt : null,
       store: store.trim() || undefined,
+      barcode: barcode || undefined,
     })
     onOpenChange(false)
   }
@@ -151,6 +154,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
       return
     }
     if (looksLikeBarcode(text)) {
+      setBarcode(text)
       setLookup({ kind: 'searching', barcode: text })
       lookupProduct(text).then(info => {
         if (info?.name) {

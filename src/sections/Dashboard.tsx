@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import type { InventoryItem, Location } from '@/types/inventory'
-import { daysUntilExpiry, expiryStatus, locationColor } from '@/types/inventory'
+import { CATEGORIES, daysUntilExpiry, expiryStatus, locationColor } from '@/types/inventory'
 import type { CustomRecipeInput } from '@/lib/recipes'
 import { ItemRow } from '@/components/ItemRow'
 import { RecipeBanner } from '@/components/RecipeBanner'
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Search, X } from 'lucide-react'
 
 interface Props {
   items: InventoryItem[]
@@ -16,6 +17,20 @@ interface Props {
 
 export function Dashboard({ items, locations, customRecipes, onOpenRecipes, onSelectLocation, onSelectItem }: Props) {
   const byId = new Map(locations.map(l => [l.id, l]))
+  const [query, setQuery] = useState('')
+
+  const q = query.trim().toLowerCase()
+  const searchResults = q
+    ? items
+        .filter(i =>
+          i.name.toLowerCase().includes(q) ||
+          i.notes.toLowerCase().includes(q) ||
+          (i.store ?? '').toLowerCase().includes(q) ||
+          (i.barcode ?? '').includes(q) ||
+          CATEGORIES[i.category].title.toLowerCase().includes(q),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : []
 
   const attention = items
     .filter(i => ['expired', 'urgent'].includes(expiryStatus(i)))
@@ -26,6 +41,46 @@ export function Dashboard({ items, locations, customRecipes, onOpenRecipes, onSe
 
   return (
     <div className="grid grid-cols-1 gap-6 px-4 pb-28 pt-5">
+      {/* Global search — across all locations */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <input
+          type="search"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search everything — name, store, barcode…"
+          className="w-full rounded-xl border-0 bg-white py-2.5 pl-9 pr-9 text-[15px] shadow-sm ring-1 ring-stone-200/60 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery('')}
+            aria-label="Clear search"
+            className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Search results replace the dashboard while typing */}
+      {q ? (
+        <section className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200/60">
+          <h2 className="px-2 pb-1 pt-1 text-sm font-semibold text-stone-600">
+            {searchResults.length === 0
+              ? `No matches for “${query.trim()}”`
+              : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
+          </h2>
+          {searchResults.length > 0 && (
+            <div className="divide-y divide-stone-100">
+              {searchResults.map(item => (
+                <ItemRow key={item.id} item={item} location={byId.get(item.location)} showLocation onClick={onSelectItem} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        <>
       {/* Tonight's pick */}
       <RecipeBanner items={items} customRecipes={customRecipes} onOpenRecipes={onOpenRecipes} />
 
@@ -92,6 +147,8 @@ export function Dashboard({ items, locations, customRecipes, onOpenRecipes, onSe
             ))}
           </div>
         </section>
+      )}
+        </>
       )}
     </div>
   )

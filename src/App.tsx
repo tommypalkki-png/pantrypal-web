@@ -24,7 +24,7 @@ const RECIPES = 'recipes'
 export default function App() {
   const { items, addItem, addItems, updateItem, deleteItem } = useInventory()
   const { locations, addLocation, renameLocation, deleteLocation } = useLocations()
-  const { extras, addExtras, removeExtra } = useShoppingExtras()
+  const { extras, addExtras, removeExtra, clearExtras } = useShoppingExtras()
   const { customRecipes, addRecipe, deleteRecipe } = useCustomRecipes()
 
   const [tab, setTab] = useState<string>(HOME)
@@ -144,20 +144,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v16
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v17
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v16
+                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v17
               </p>
             )}
             {tab === RECIPES && (
               <p className="mt-0.5 text-sm text-stone-400">
-                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v16
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v17
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v16</p>}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v17</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -188,6 +188,7 @@ export default function App() {
             locations={locations}
             extras={extras}
             onRemoveExtra={removeExtra}
+            onClearExtras={clearExtras}
             onSelectItem={openEdit}
           />
         ) : tab === RECIPES ? (

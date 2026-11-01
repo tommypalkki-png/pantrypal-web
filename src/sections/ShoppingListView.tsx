@@ -2,7 +2,11 @@ import { useState } from 'react'
 import type { InventoryItem, Location } from '@/types/inventory'
 import { CATEGORIES, formatQuantity, isLowStock, itemStore, locationColor } from '@/types/inventory'
 import type { ShoppingExtra } from '@/hooks/useShoppingExtras'
-import { Check, ChefHat, ShoppingCart, Store, X } from 'lucide-react'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Check, ChefHat, RotateCcw, ShoppingCart, Store, X } from 'lucide-react'
 
 interface Props {
   items: InventoryItem[]
@@ -10,15 +14,18 @@ interface Props {
   /** manual entries (e.g. missing recipe ingredients) */
   extras: ShoppingExtra[]
   onRemoveExtra: (id: string) => void
+  /** clear all manual entries */
+  onClearExtras: () => void
   onSelectItem: (item: InventoryItem) => void
 }
 
 /** Group label for items with no store set. */
 const NO_STORE = 'No store listed'
 
-export function ShoppingListView({ items, locations, extras, onRemoveExtra, onSelectItem }: Props) {
+export function ShoppingListView({ items, locations, extras, onRemoveExtra, onClearExtras, onSelectItem }: Props) {
   // checked-off ids (session only — for ticking things off while walking the aisles)
   const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [resetOpen, setResetOpen] = useState(false)
 
   const byId = new Map(locations.map(l => [l.id, l]))
   const lowItems = items.filter(isLowStock)
@@ -207,6 +214,41 @@ export function ShoppingListView({ items, locations, extras, onRemoveExtra, onSe
             Tap Restock after buying to update the quantity — the item leaves
             this list once it's above its low-stock level.
           </p>
+
+          {/* Reset: untick everything and remove recipe extras */}
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => setResetOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-stone-500 ring-1 ring-stone-200/60 active:scale-95"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Reset list
+            </button>
+          </div>
+
+          <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+            <AlertDialogContent className="max-w-xs rounded-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reset shopping list?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This unticks every item and removes all “From recipes”
+                  entries. Low-stock items stay, since they're tracked
+                  automatically.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    setChecked(new Set())
+                    onClearExtras()
+                  }}
+                >
+                  Reset
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
 

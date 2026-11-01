@@ -135,6 +135,27 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
   const bump = (delta: number) =>
     setQuantity(q => Math.max(0, Math.round((q + delta) * 10) / 10))
 
+  /** Look up whatever is typed in the UPC field, without opening the camera.
+   *  Fills only empty fields so editing an existing item never clobbers it. */
+  const lookupTypedBarcode = () => {
+    if (!looksLikeBarcode(barcode)) return
+    setLookup({ kind: 'searching', barcode })
+    lookupProduct(barcode).then(info => {
+      if (info?.name) {
+        const foundName = info.name
+        setLookup({ kind: 'found', name: foundName })
+        setName(prev => prev || foundName)
+        if (info.quantity != null && info.unit) {
+          setQuantity(prev => (prev === 1 ? info.quantity! : prev))
+          setUnit(info.unit)
+        }
+        if (info.brand) setNotes(prev => prev || info.brand!)
+      } else {
+        setLookup({ kind: 'miss', barcode })
+      }
+    })
+  }
+
   const handleScan = (text: string) => {
     setScanPurpose(null)
     if (scanPurpose === 'location') {
@@ -216,6 +237,26 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
                   Barcode {lookup.barcode} not in Open Food Facts — fill in the name yourself.
                 </p>
               )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <Label htmlFor="barcode">UPC / barcode (optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="barcode"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="Digits under the barcode"
+                  value={barcode}
+                  onChange={e => setBarcode(e.target.value.replace(/\D/g, '').slice(0, 14))}
+                  className="flex-1"
+                />
+                {looksLikeBarcode(barcode) && (
+                  <Button type="button" variant="outline" onClick={lookupTypedBarcode}>
+                    Look up
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-2">

@@ -374,6 +374,7 @@ export function ItemFormDialog({ open, onOpenChange, item, draft, locations, sto
         onOpenChange={o => !o && setScanPurpose(null)}
         onScan={handleScan}
         title={scanPurpose === 'location' ? 'Scan location QR' : 'Scan product barcode'}
+        allowManualEntry={scanPurpose !== 'location'}
       />
     </>
   )

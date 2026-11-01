@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 /** Handle for the lazily-loaded zxing reader (fallback when the OS has no native decoder). */
 type ZxingReader = {
@@ -15,6 +17,8 @@ interface Props {
   /** Called with the decoded QR/barcode text. The parent usually closes the dialog. */
   onScan: (text: string) => void
   title?: string
+  /** Show a "type the UPC digits" fallback row (default true). */
+  allowManualEntry?: boolean
 }
 
 type Phase = 'mounting' | 'requesting' | 'decoding'
@@ -45,17 +49,19 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
  * proved fragile on iOS) and prefers the OS-native BarcodeDetector when
  * available, falling back to zxing decoding from the video element.
  */
-export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: Props) {
+export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code', allowManualEntry = true }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [phase, setPhase] = useState<Phase>('mounting')
   const [error, setError] = useState<string | null>(null)
   const [slowHint, setSlowHint] = useState(false)
+  const [manual, setManual] = useState('')
 
   useEffect(() => {
     if (!open) return
     setError(null)
     setSlowHint(false)
     setPhase('mounting')
+    setManual('')
 
     let cancelled = false
     let stream: MediaStream | null = null
@@ -204,6 +210,35 @@ export function ScanDialog({ open, onOpenChange, onScan, title = 'Scan code' }: 
               </p>
             )}
           </div>
+        )}
+
+        {allowManualEntry && (
+          <form
+            className="border-t border-stone-200 pt-3"
+            onSubmit={e => {
+              e.preventDefault()
+              const text = manual.trim()
+              if (text.length >= 8) onScan(text)
+            }}
+          >
+            <p className="mb-2 text-center text-xs text-stone-400">
+              Damaged label or no camera? Type the numbers under the barcode.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={manual}
+                onChange={e => setManual(e.target.value.replace(/\D/g, '').slice(0, 14))}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="Enter UPC digits"
+                aria-label="Enter UPC digits manually"
+                className="flex-1"
+              />
+              <Button type="submit" variant="outline" disabled={manual.trim().length < 8}>
+                Look up
+              </Button>
+            </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>

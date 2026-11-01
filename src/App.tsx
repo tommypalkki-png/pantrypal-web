@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { InventoryItem, Location } from '@/types/inventory'
 import { isLowStock, locationColor, parseLocationId } from '@/types/inventory'
-import { looksLikeBarcode } from '@/lib/openfoodfacts'
+import { looksLikeBarcode, lookupProduct } from '@/lib/openfoodfacts'
 import { useInventory } from '@/hooks/useInventory'
 import { useLocations } from '@/hooks/useLocations'
 import { useShoppingExtras } from '@/hooks/useShoppingExtras'
@@ -70,7 +70,8 @@ export default function App() {
 
   /** Header scanner: location QR -> add form for that location;
    *  known product barcode -> open the existing listing;
-   *  new product barcode -> add form with OFF lookup; anything else -> prefill the name. */
+   *  unknown barcode -> OFF lookup, then try to match an existing item by name
+   *  (and remember the barcode on it); otherwise add form with OFF data. */
   const handleScan = (text: string) => {
     setScanOpen(false)
     const locId = parseLocationId(text)
@@ -79,13 +80,34 @@ export default function App() {
       return
     }
     if (looksLikeBarcode(text)) {
-      // Already stocked? Bring up that listing instead of a duplicate form.
+      // Fast path: barcode already linked to an item.
       const existing = items.find(i => i.barcode === text)
       if (existing) {
         openEdit(existing)
         return
       }
-      openAdd({ barcode: text })
+      // Slow path: look up the product, then try to match an item added
+      // before barcodes were stored (name match). Link the barcode to it
+      // so the next scan takes the fast path.
+      lookupProduct(text).then(info => {
+        if (!info?.name) {
+          openAdd({ barcode: text })
+          return
+        }
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+        const target = norm(info.name)
+        const byName = items.find(i => {
+          const n = norm(i.name)
+          return n === target || (n.length >= 4 && target.includes(n)) || (target.length >= 4 && n.includes(target))
+        })
+        if (byName) {
+          const linked = { ...byName, barcode: text }
+          updateItem(linked)
+          openEdit(linked)
+        } else {
+          openAdd({ barcode: text })
+        }
+      })
       return
     }
     openAdd({ name: text.slice(0, 120) })
@@ -122,20 +144,20 @@ export default function App() {
             <h1 className="truncate text-2xl font-bold tracking-tight text-stone-800">{title}</h1>
             {tab === HOME && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v15
+                {items.length} item{items.length === 1 ? '' : 's'} in {locations.length} location{locations.length === 1 ? '' : 's'} · v16
               </p>
             )}
             {tab === SHOP && (
               <p className="mt-0.5 text-sm text-stone-400">
-                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v15
+                {lowCount} item{lowCount === 1 ? '' : 's'} on your list · v16
               </p>
             )}
             {tab === RECIPES && (
               <p className="mt-0.5 text-sm text-stone-400">
-                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v15
+                From your {items.length} ingredient{items.length === 1 ? '' : 's'} · v16
               </p>
             )}
-            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v15</p>}
+            {tab !== HOME && tab !== SHOP && tab !== RECIPES && <p className="mt-0.5 text-sm text-stone-400">v16</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <button
@@ -184,6 +206,7 @@ export default function App() {
             onOpenRecipes={() => setTab(RECIPES)}
             onSelectLocation={setTab}
             onSelectItem={openEdit}
+            onScan={() => setScanOpen(true)}
           />
         ) : (
           <LocationView

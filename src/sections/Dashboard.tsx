@@ -4,7 +4,7 @@ import { CATEGORIES, daysUntilExpiry, expiryStatus, locationColor } from '@/type
 import type { CustomRecipeInput } from '@/lib/recipes'
 import { ItemRow } from '@/components/ItemRow'
 import { RecipeBanner } from '@/components/RecipeBanner'
-import { AlertTriangle, CheckCircle2, Search, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ScanBarcode, Search, X } from 'lucide-react'
 
 interface Props {
   items: InventoryItem[]
@@ -13,9 +13,11 @@ interface Props {
   onOpenRecipes: () => void
   onSelectLocation: (locationId: string) => void
   onSelectItem: (item: InventoryItem) => void
+  /** open the barcode scanner (result opens the listing or add form) */
+  onScan: () => void
 }
 
-export function Dashboard({ items, locations, customRecipes, onOpenRecipes, onSelectLocation, onSelectItem }: Props) {
+export function Dashboard({ items, locations, customRecipes, onOpenRecipes, onSelectLocation, onSelectItem, onScan }: Props) {
   const byId = new Map(locations.map(l => [l.id, l]))
   const [query, setQuery] = useState('')
 
@@ -49,18 +51,28 @@ export function Dashboard({ items, locations, customRecipes, onOpenRecipes, onSe
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search everything — name, store, barcode…"
-          className="w-full rounded-xl border-0 bg-white py-2.5 pl-9 pr-9 text-[15px] shadow-sm ring-1 ring-stone-200/60 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
+          className="w-full rounded-xl border-0 bg-white py-2.5 pl-9 pr-16 text-[15px] shadow-sm ring-1 ring-stone-200/60 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
         />
-        {query && (
+        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              className="flex h-6 w-6 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setQuery('')}
-            aria-label="Clear search"
-            className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100"
+            onClick={onScan}
+            aria-label="Scan a barcode"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 active:scale-90"
           >
-            <X className="h-4 w-4" />
+            <ScanBarcode className="h-4 w-4" />
           </button>
-        )}
+        </div>
       </div>
 
       {/* Search results replace the dashboard while typing */}
